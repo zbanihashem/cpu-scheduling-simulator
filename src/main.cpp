@@ -7,14 +7,20 @@
 using namespace std;
 
 
-void printResult(const string& title,
-                 const vector<Process>& result)
+void printResult(
+    const string& title,
+    const vector<Process>& result)
 {
     cout << "\n" << title << "\n";
-    cout << "-------------------------------------------------------------\n";
-    cout << "PID\tAT\tBT\tST\tCT\tWT\tTAT\tRT\n";
+
+    cout <<
+        "-------------------------------------------------------------\n";
+
+    cout <<
+        "PID\tAT\tBT\tST\tCT\tWT\tTAT\tRT\n";
 
     for (const Process& p : result) {
+
         cout << "P" << p.pid << "\t"
              << p.arrivalTime << "\t"
              << p.burstTime << "\t"
@@ -44,9 +50,12 @@ int main()
 
     cout << "Input Processes\n";
     cout << "---------------------------------\n";
-    cout << "PID\tArrival\tBurst\tPriority\n";
+
+    cout <<
+        "PID\tArrival\tBurst\tPriority\n";
 
     for (const Process& p : processes) {
+
         cout << "P" << p.pid << "\t"
              << p.arrivalTime << "\t"
              << p.burstTime << "\t"
@@ -63,7 +72,15 @@ int main()
         Scheduler::srtf(processes);
 
     vector<Process> rrResult =
-        Scheduler::roundRobin(processes, quantum);
+        Scheduler::roundRobin(
+            processes,
+            quantum
+        );
+
+    vector<Process> priorityResult =
+        Scheduler::priorityScheduling(
+            processes
+        );
 
     printResult(
         "FCFS Result",
@@ -83,6 +100,11 @@ int main()
     printResult(
         "Round Robin Result (Quantum = 2)",
         rrResult
+    );
+
+    printResult(
+        "Priority Scheduling Result",
+        priorityResult
     );
 
     return 0;

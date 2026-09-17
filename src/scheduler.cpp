@@ -50,7 +50,8 @@ std::vector<Process> Scheduler::sjf(std::vector<Process> processes)
     while (completed < n) {
 
         int selected = -1;
-        int shortestBurst = std::numeric_limits<int>::max();
+        int shortestBurst =
+            std::numeric_limits<int>::max();
 
         for (int i = 0; i < n; i++) {
 
@@ -58,7 +59,10 @@ std::vector<Process> Scheduler::sjf(std::vector<Process> processes)
                 processes[i].arrivalTime <= currentTime) {
 
                 if (processes[i].burstTime < shortestBurst) {
-                    shortestBurst = processes[i].burstTime;
+
+                    shortestBurst =
+                        processes[i].burstTime;
+
                     selected = i;
                 }
             }
@@ -66,13 +70,18 @@ std::vector<Process> Scheduler::sjf(std::vector<Process> processes)
 
         if (selected == -1) {
 
-            int nextArrival = std::numeric_limits<int>::max();
+            int nextArrival =
+                std::numeric_limits<int>::max();
 
             for (int i = 0; i < n; i++) {
+
                 if (!finished[i]) {
+
                     nextArrival =
-                        std::min(nextArrival,
-                                 processes[i].arrivalTime);
+                        std::min(
+                            nextArrival,
+                            processes[i].arrivalTime
+                        );
                 }
             }
 
@@ -121,6 +130,7 @@ std::vector<Process> Scheduler::srtf(std::vector<Process> processes)
     while (completed < n) {
 
         int selected = -1;
+
         int shortestRemaining =
             std::numeric_limits<int>::max();
 
@@ -196,8 +206,8 @@ std::vector<Process> Scheduler::roundRobin(
 
     while (completed < n) {
 
-        // Add all processes that have arrived.
         for (int i = 0; i < n; i++) {
+
             if (!added[i] &&
                 processes[i].arrivalTime <= currentTime) {
 
@@ -206,7 +216,6 @@ std::vector<Process> Scheduler::roundRobin(
             }
         }
 
-        // CPU is idle if no process is ready.
         if (readyQueue.empty()) {
             currentTime++;
             continue;
@@ -217,7 +226,6 @@ std::vector<Process> Scheduler::roundRobin(
 
         Process& p = processes[index];
 
-        // First time this process gets the CPU.
         if (p.startTime == -1) {
             p.startTime = currentTime;
         }
@@ -228,9 +236,8 @@ std::vector<Process> Scheduler::roundRobin(
         p.remainingTime -= executionTime;
         currentTime += executionTime;
 
-        // Processes may have arrived while this process
-        // was using the CPU.
         for (int i = 0; i < n; i++) {
+
             if (!added[i] &&
                 processes[i].arrivalTime <= currentTime) {
 
@@ -241,8 +248,6 @@ std::vector<Process> Scheduler::roundRobin(
 
         if (p.remainingTime > 0) {
 
-            // Process is not finished.
-            // Put it at the end of the ready queue.
             readyQueue.push(index);
 
         } else {
@@ -262,6 +267,88 @@ std::vector<Process> Scheduler::roundRobin(
 
             result.push_back(p);
         }
+    }
+
+    return result;
+}
+
+
+std::vector<Process> Scheduler::priorityScheduling(
+    std::vector<Process> processes)
+{
+    int n = processes.size();
+    int completed = 0;
+    int currentTime = 0;
+
+    std::vector<bool> finished(n, false);
+    std::vector<Process> result;
+
+    while (completed < n) {
+
+        int selected = -1;
+
+        int highestPriority =
+            std::numeric_limits<int>::max();
+
+        for (int i = 0; i < n; i++) {
+
+            if (!finished[i] &&
+                processes[i].arrivalTime <= currentTime) {
+
+                if (processes[i].priority <
+                    highestPriority) {
+
+                    highestPriority =
+                        processes[i].priority;
+
+                    selected = i;
+                }
+            }
+        }
+
+        // No process is ready: CPU is idle.
+        if (selected == -1) {
+
+            int nextArrival =
+                std::numeric_limits<int>::max();
+
+            for (int i = 0; i < n; i++) {
+
+                if (!finished[i]) {
+
+                    nextArrival =
+                        std::min(
+                            nextArrival,
+                            processes[i].arrivalTime
+                        );
+                }
+            }
+
+            currentTime = nextArrival;
+            continue;
+        }
+
+        Process& p = processes[selected];
+
+        p.startTime = currentTime;
+
+        currentTime += p.burstTime;
+
+        p.completionTime = currentTime;
+
+        p.turnaroundTime =
+            p.completionTime - p.arrivalTime;
+
+        p.waitingTime =
+            p.turnaroundTime - p.burstTime;
+
+        p.responseTime =
+            p.startTime - p.arrivalTime;
+
+        finished[selected] = true;
+        completed++;
+
+        result.push_back(p);
     }
 
     return result;
