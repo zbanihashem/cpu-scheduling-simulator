@@ -6,6 +6,7 @@
 
 using namespace std;
 
+
 void printResult(const string& title,
                  const vector<Process>& result)
 {
@@ -56,8 +57,20 @@ int main()
     vector<Process> sjfResult =
         Scheduler::sjf(processes);
 
+    vector<Process> srtfResult =
+        Scheduler::srtf(processes);
+
     printResult("FCFS Result", fcfsResult);
-    printResult("SJF (Non-preemptive) Result", sjfResult);
+
+    printResult(
+        "SJF (Non-preemptive) Result",
+        sjfResult
+    );
+
+    printResult(
+        "SRTF (Preemptive SJF) Result",
+        srtfResult
+    );
 
     return 0;
 }
