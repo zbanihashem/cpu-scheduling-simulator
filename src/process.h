@@ -7,13 +7,13 @@ struct Process {
     int burstTime;
     int priority;
 
-    int remainingTime;
-    int startTime;
-    int completionTime;
+    int remainingTime = 0;
+    int startTime = 0;
+    int completionTime = 0;
 
-    int waitingTime;
-    int turnaroundTime;
-    int responseTime;
+    int waitingTime = 0;
+    int turnaroundTime = 0;
+    int responseTime = 0;
 };
 
 #endif
