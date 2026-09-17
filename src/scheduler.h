@@ -20,6 +20,11 @@ public:
     static std::vector<Process> priorityScheduling(
         std::vector<Process> processes
     );
+
+    static std::vector<Process> priorityWithAging(
+        std::vector<Process> processes,
+        int agingInterval
+    );
 };
 
 #endif

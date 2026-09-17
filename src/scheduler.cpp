@@ -59,10 +59,7 @@ std::vector<Process> Scheduler::sjf(std::vector<Process> processes)
                 processes[i].arrivalTime <= currentTime) {
 
                 if (processes[i].burstTime < shortestBurst) {
-
-                    shortestBurst =
-                        processes[i].burstTime;
-
+                    shortestBurst = processes[i].burstTime;
                     selected = i;
                 }
             }
@@ -76,12 +73,9 @@ std::vector<Process> Scheduler::sjf(std::vector<Process> processes)
             for (int i = 0; i < n; i++) {
 
                 if (!finished[i]) {
-
                     nextArrival =
-                        std::min(
-                            nextArrival,
-                            processes[i].arrivalTime
-                        );
+                        std::min(nextArrival,
+                                 processes[i].arrivalTime);
                 }
             }
 
@@ -306,7 +300,100 @@ std::vector<Process> Scheduler::priorityScheduling(
             }
         }
 
-        // No process is ready: CPU is idle.
+        if (selected == -1) {
+
+            int nextArrival =
+                std::numeric_limits<int>::max();
+
+            for (int i = 0; i < n; i++) {
+
+                if (!finished[i]) {
+
+                    nextArrival =
+                        std::min(
+                            nextArrival,
+                            processes[i].arrivalTime
+                        );
+                }
+            }
+
+            currentTime = nextArrival;
+            continue;
+        }
+
+        Process& p = processes[selected];
+
+        p.startTime = currentTime;
+        currentTime += p.burstTime;
+        p.completionTime = currentTime;
+
+        p.turnaroundTime =
+            p.completionTime - p.arrivalTime;
+
+        p.waitingTime =
+            p.turnaroundTime - p.burstTime;
+
+        p.responseTime =
+            p.startTime - p.arrivalTime;
+
+        finished[selected] = true;
+        completed++;
+
+        result.push_back(p);
+    }
+
+    return result;
+}
+
+
+std::vector<Process> Scheduler::priorityWithAging(
+    std::vector<Process> processes,
+    int agingInterval)
+{
+    int n = processes.size();
+    int completed = 0;
+    int currentTime = 0;
+
+    std::vector<bool> finished(n, false);
+    std::vector<Process> result;
+
+    while (completed < n) {
+
+        int selected = -1;
+
+        int bestEffectivePriority =
+            std::numeric_limits<int>::max();
+
+        for (int i = 0; i < n; i++) {
+
+            if (!finished[i] &&
+                processes[i].arrivalTime <= currentTime) {
+
+                int waitingSoFar =
+                    currentTime -
+                    processes[i].arrivalTime;
+
+                int priorityBoost =
+                    waitingSoFar / agingInterval;
+
+                int effectivePriority =
+                    std::max(
+                        1,
+                        processes[i].priority -
+                        priorityBoost
+                    );
+
+                if (effectivePriority <
+                    bestEffectivePriority) {
+
+                    bestEffectivePriority =
+                        effectivePriority;
+
+                    selected = i;
+                }
+            }
+        }
+
         if (selected == -1) {
 
             int nextArrival =
