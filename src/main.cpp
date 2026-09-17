@@ -1,4 +1,6 @@
+#include <iomanip>
 #include <iostream>
+#include <string>
 #include <vector>
 
 #include "process.h"
@@ -6,6 +8,13 @@
 #include "gantt.h"
 
 using namespace std;
+
+
+struct AverageMetrics {
+    double waitingTime;
+    double turnaroundTime;
+    double responseTime;
+};
 
 
 void printInput(
@@ -72,6 +81,97 @@ void printGantt(
     }
 
     cout << "\n";
+}
+
+
+AverageMetrics calculateAverageMetrics(
+    const vector<Process>& processes)
+{
+    double totalWaiting = 0.0;
+    double totalTurnaround = 0.0;
+    double totalResponse = 0.0;
+
+    for (const Process& p : processes) {
+
+        totalWaiting += p.waitingTime;
+        totalTurnaround += p.turnaroundTime;
+        totalResponse += p.responseTime;
+    }
+
+    int count = processes.size();
+
+    return {
+        totalWaiting / count,
+        totalTurnaround / count,
+        totalResponse / count
+    };
+}
+
+
+void printComparisonRow(
+    const string& algorithm,
+    const vector<Process>& result)
+{
+    AverageMetrics metrics =
+        calculateAverageMetrics(result);
+
+    cout << left
+         << setw(22) << algorithm
+         << right
+         << setw(12) << fixed << setprecision(2)
+         << metrics.waitingTime
+         << setw(14)
+         << metrics.turnaroundTime
+         << setw(12)
+         << metrics.responseTime
+         << "\n";
+}
+
+
+void printComparison(
+    const vector<Process>& fcfsResult,
+    const vector<Process>& sjfResult,
+    const vector<Process>& srtfResult,
+    const vector<Process>& rrResult,
+    const vector<Process>& priorityResult)
+{
+    cout << "\n\nAlgorithm Comparison\n";
+    cout << "============================================================\n";
+
+    cout << left
+         << setw(22) << "Algorithm"
+         << right
+         << setw(12) << "Avg WT"
+         << setw(14) << "Avg TAT"
+         << setw(12) << "Avg RT"
+         << "\n";
+
+    cout << "------------------------------------------------------------\n";
+
+    printComparisonRow(
+        "FCFS",
+        fcfsResult
+    );
+
+    printComparisonRow(
+        "SJF",
+        sjfResult
+    );
+
+    printComparisonRow(
+        "SRTF",
+        srtfResult
+    );
+
+    printComparisonRow(
+        "Round Robin",
+        rrResult
+    );
+
+    printComparisonRow(
+        "Priority",
+        priorityResult
+    );
 }
 
 
@@ -187,6 +287,16 @@ int main()
     printGantt(
         "Priority",
         priorityGantt
+    );
+
+
+    // Compare the main scheduling algorithms.
+    printComparison(
+        fcfsResult,
+        sjfResult,
+        srtfResult,
+        rrResult,
+        priorityResult
     );
 
 
