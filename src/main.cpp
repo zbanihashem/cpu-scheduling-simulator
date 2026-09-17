@@ -6,9 +6,28 @@
 
 using namespace std;
 
+void printResult(const string& title,
+                 const vector<Process>& result)
+{
+    cout << "\n" << title << "\n";
+    cout << "-------------------------------------------------------------\n";
+    cout << "PID\tAT\tBT\tST\tCT\tWT\tTAT\tRT\n";
+
+    for (const Process& p : result) {
+        cout << "P" << p.pid << "\t"
+             << p.arrivalTime << "\t"
+             << p.burstTime << "\t"
+             << p.startTime << "\t"
+             << p.completionTime << "\t"
+             << p.waitingTime << "\t"
+             << p.turnaroundTime << "\t"
+             << p.responseTime << "\n";
+    }
+}
+
+
 int main()
 {
-    // Test dataset
     vector<Process> processes = {
         {1, 0, 5, 2},
         {2, 1, 3, 1},
@@ -17,7 +36,6 @@ int main()
         {5, 4, 2, 3}
     };
 
-    // Display input processes
     cout << "CPU Scheduling Simulator\n";
     cout << "========================\n\n";
 
@@ -32,24 +50,14 @@ int main()
              << p.priority << "\n";
     }
 
-    // Run FCFS scheduler
-    vector<Process> fcfsResult = Scheduler::fcfs(processes);
+    vector<Process> fcfsResult =
+        Scheduler::fcfs(processes);
 
-    // Display FCFS results
-    cout << "\nFCFS Result\n";
-    cout << "-------------------------------------------------------------\n";
-    cout << "PID\tAT\tBT\tST\tCT\tWT\tTAT\tRT\n";
+    vector<Process> sjfResult =
+        Scheduler::sjf(processes);
 
-    for (const Process& p : fcfsResult) {
-        cout << "P" << p.pid << "\t"
-             << p.arrivalTime << "\t"
-             << p.burstTime << "\t"
-             << p.startTime << "\t"
-             << p.completionTime << "\t"
-             << p.waitingTime << "\t"
-             << p.turnaroundTime << "\t"
-             << p.responseTime << "\n";
-    }
+    printResult("FCFS Result", fcfsResult);
+    printResult("SJF (Non-preemptive) Result", sjfResult);
 
     return 0;
 }
