@@ -3,8 +3,24 @@
 
 #include "process.h"
 #include "scheduler.h"
+#include "gantt.h"
 
 using namespace std;
+
+
+void printInput(
+    const vector<Process>& processes)
+{
+    cout << "PID\tArrival\tBurst\tPriority\n";
+
+    for (const Process& p : processes) {
+
+        cout << "P" << p.pid << "\t"
+             << p.arrivalTime << "\t"
+             << p.burstTime << "\t"
+             << p.priority << "\n";
+    }
+}
 
 
 void printResult(
@@ -33,17 +49,29 @@ void printResult(
 }
 
 
-void printInput(const vector<Process>& processes)
+void printGantt(
+    const string& title,
+    const vector<GanttEntry>& gantt)
 {
-    cout << "PID\tArrival\tBurst\tPriority\n";
+    cout << "\n" << title << " Gantt Chart\n";
 
-    for (const Process& p : processes) {
+    for (const GanttEntry& entry : gantt) {
 
-        cout << "P" << p.pid << "\t"
-             << p.arrivalTime << "\t"
-             << p.burstTime << "\t"
-             << p.priority << "\n";
+        cout << "[" << entry.startTime
+             << "-";
+
+        if (entry.pid == -1) {
+            cout << "IDLE";
+        } else {
+            cout << "P" << entry.pid;
+        }
+
+        cout << "-"
+             << entry.endTime
+             << "] ";
     }
+
+    cout << "\n";
 }
 
 
@@ -67,49 +95,98 @@ int main()
 
     printInput(processes);
 
+
+    vector<GanttEntry> fcfsGantt;
+    vector<GanttEntry> sjfGantt;
+    vector<GanttEntry> srtfGantt;
+    vector<GanttEntry> rrGantt;
+    vector<GanttEntry> priorityGantt;
+
+
     vector<Process> fcfsResult =
-        Scheduler::fcfs(processes);
+        Scheduler::fcfs(
+            processes,
+            &fcfsGantt
+        );
 
     vector<Process> sjfResult =
-        Scheduler::sjf(processes);
+        Scheduler::sjf(
+            processes,
+            &sjfGantt
+        );
 
     vector<Process> srtfResult =
-        Scheduler::srtf(processes);
+        Scheduler::srtf(
+            processes,
+            &srtfGantt
+        );
 
     vector<Process> rrResult =
         Scheduler::roundRobin(
             processes,
-            quantum
+            quantum,
+            &rrGantt
         );
 
     vector<Process> priorityResult =
         Scheduler::priorityScheduling(
-            processes
+            processes,
+            &priorityGantt
         );
+
 
     printResult(
         "FCFS Result",
         fcfsResult
     );
 
+    printGantt(
+        "FCFS",
+        fcfsGantt
+    );
+
+
     printResult(
         "SJF (Non-preemptive) Result",
         sjfResult
     );
+
+    printGantt(
+        "SJF",
+        sjfGantt
+    );
+
 
     printResult(
         "SRTF (Preemptive SJF) Result",
         srtfResult
     );
 
+    printGantt(
+        "SRTF",
+        srtfGantt
+    );
+
+
     printResult(
         "Round Robin Result (Quantum = 2)",
         rrResult
     );
 
+    printGantt(
+        "Round Robin",
+        rrGantt
+    );
+
+
     printResult(
         "Priority Scheduling Result",
         priorityResult
+    );
+
+    printGantt(
+        "Priority",
+        priorityGantt
     );
 
 
@@ -130,16 +207,21 @@ int main()
 
     printInput(agingTest);
 
+
     vector<Process> withoutAging =
         Scheduler::priorityScheduling(
             agingTest
         );
 
+    vector<GanttEntry> agingGantt;
+
     vector<Process> withAging =
         Scheduler::priorityWithAging(
             agingTest,
-            agingInterval
+            agingInterval,
+            &agingGantt
         );
+
 
     printResult(
         "Priority Scheduling WITHOUT Aging",
@@ -150,6 +232,12 @@ int main()
         "Priority Scheduling WITH Aging (Interval = 3)",
         withAging
     );
+
+    printGantt(
+        "Priority with Aging",
+        agingGantt
+    );
+
 
     return 0;
 }

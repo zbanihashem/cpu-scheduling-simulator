@@ -5,23 +5,79 @@
 #include <queue>
 
 
-std::vector<Process> Scheduler::fcfs(std::vector<Process> processes)
+namespace {
+
+void addGanttEntry(
+    std::vector<GanttEntry>* gantt,
+    int pid,
+    int startTime,
+    int endTime)
 {
-    std::sort(processes.begin(), processes.end(),
-              [](const Process& a, const Process& b) {
-                  return a.arrivalTime < b.arrivalTime;
-              });
+    if (gantt == nullptr || startTime == endTime) {
+        return;
+    }
+
+    // Merge consecutive execution segments
+    // belonging to the same process.
+    if (!gantt->empty() &&
+        gantt->back().pid == pid &&
+        gantt->back().endTime == startTime) {
+
+        gantt->back().endTime = endTime;
+        return;
+    }
+
+    gantt->push_back({
+        pid,
+        startTime,
+        endTime
+    });
+}
+
+}
+
+
+std::vector<Process> Scheduler::fcfs(
+    std::vector<Process> processes,
+    std::vector<GanttEntry>* gantt)
+{
+    std::sort(
+        processes.begin(),
+        processes.end(),
+        [](const Process& a, const Process& b) {
+            return a.arrivalTime < b.arrivalTime;
+        }
+    );
 
     int currentTime = 0;
 
     for (Process& p : processes) {
 
         if (currentTime < p.arrivalTime) {
+
+            addGanttEntry(
+                gantt,
+                -1,
+                currentTime,
+                p.arrivalTime
+            );
+
             currentTime = p.arrivalTime;
         }
 
         p.startTime = currentTime;
+
+        int executionStart = currentTime;
+
         currentTime += p.burstTime;
+
+        addGanttEntry(
+            gantt,
+            p.pid,
+            executionStart,
+            currentTime
+        );
+
         p.completionTime = currentTime;
 
         p.turnaroundTime =
@@ -38,7 +94,9 @@ std::vector<Process> Scheduler::fcfs(std::vector<Process> processes)
 }
 
 
-std::vector<Process> Scheduler::sjf(std::vector<Process> processes)
+std::vector<Process> Scheduler::sjf(
+    std::vector<Process> processes,
+    std::vector<GanttEntry>* gantt)
 {
     int n = processes.size();
     int completed = 0;
@@ -50,6 +108,7 @@ std::vector<Process> Scheduler::sjf(std::vector<Process> processes)
     while (completed < n) {
 
         int selected = -1;
+
         int shortestBurst =
             std::numeric_limits<int>::max();
 
@@ -58,8 +117,12 @@ std::vector<Process> Scheduler::sjf(std::vector<Process> processes)
             if (!finished[i] &&
                 processes[i].arrivalTime <= currentTime) {
 
-                if (processes[i].burstTime < shortestBurst) {
-                    shortestBurst = processes[i].burstTime;
+                if (processes[i].burstTime <
+                    shortestBurst) {
+
+                    shortestBurst =
+                        processes[i].burstTime;
+
                     selected = i;
                 }
             }
@@ -73,11 +136,21 @@ std::vector<Process> Scheduler::sjf(std::vector<Process> processes)
             for (int i = 0; i < n; i++) {
 
                 if (!finished[i]) {
+
                     nextArrival =
-                        std::min(nextArrival,
-                                 processes[i].arrivalTime);
+                        std::min(
+                            nextArrival,
+                            processes[i].arrivalTime
+                        );
                 }
             }
+
+            addGanttEntry(
+                gantt,
+                -1,
+                currentTime,
+                nextArrival
+            );
 
             currentTime = nextArrival;
             continue;
@@ -86,7 +159,18 @@ std::vector<Process> Scheduler::sjf(std::vector<Process> processes)
         Process& p = processes[selected];
 
         p.startTime = currentTime;
+
+        int executionStart = currentTime;
+
         currentTime += p.burstTime;
+
+        addGanttEntry(
+            gantt,
+            p.pid,
+            executionStart,
+            currentTime
+        );
+
         p.completionTime = currentTime;
 
         p.turnaroundTime =
@@ -108,7 +192,9 @@ std::vector<Process> Scheduler::sjf(std::vector<Process> processes)
 }
 
 
-std::vector<Process> Scheduler::srtf(std::vector<Process> processes)
+std::vector<Process> Scheduler::srtf(
+    std::vector<Process> processes,
+    std::vector<GanttEntry>* gantt)
 {
     int n = processes.size();
     int completed = 0;
@@ -145,6 +231,14 @@ std::vector<Process> Scheduler::srtf(std::vector<Process> processes)
         }
 
         if (selected == -1) {
+
+            addGanttEntry(
+                gantt,
+                -1,
+                currentTime,
+                currentTime + 1
+            );
+
             currentTime++;
             continue;
         }
@@ -155,8 +249,17 @@ std::vector<Process> Scheduler::srtf(std::vector<Process> processes)
             p.startTime = currentTime;
         }
 
+        int executionStart = currentTime;
+
         p.remainingTime--;
         currentTime++;
+
+        addGanttEntry(
+            gantt,
+            p.pid,
+            executionStart,
+            currentTime
+        );
 
         if (p.remainingTime == 0) {
 
@@ -183,7 +286,8 @@ std::vector<Process> Scheduler::srtf(std::vector<Process> processes)
 
 std::vector<Process> Scheduler::roundRobin(
     std::vector<Process> processes,
-    int quantum)
+    int quantum,
+    std::vector<GanttEntry>* gantt)
 {
     int n = processes.size();
     int completed = 0;
@@ -211,6 +315,14 @@ std::vector<Process> Scheduler::roundRobin(
         }
 
         if (readyQueue.empty()) {
+
+            addGanttEntry(
+                gantt,
+                -1,
+                currentTime,
+                currentTime + 1
+            );
+
             currentTime++;
             continue;
         }
@@ -225,10 +337,22 @@ std::vector<Process> Scheduler::roundRobin(
         }
 
         int executionTime =
-            std::min(quantum, p.remainingTime);
+            std::min(
+                quantum,
+                p.remainingTime
+            );
+
+        int executionStart = currentTime;
 
         p.remainingTime -= executionTime;
         currentTime += executionTime;
+
+        addGanttEntry(
+            gantt,
+            p.pid,
+            executionStart,
+            currentTime
+        );
 
         for (int i = 0; i < n; i++) {
 
@@ -268,7 +392,8 @@ std::vector<Process> Scheduler::roundRobin(
 
 
 std::vector<Process> Scheduler::priorityScheduling(
-    std::vector<Process> processes)
+    std::vector<Process> processes,
+    std::vector<GanttEntry>* gantt)
 {
     int n = processes.size();
     int completed = 0;
@@ -317,6 +442,13 @@ std::vector<Process> Scheduler::priorityScheduling(
                 }
             }
 
+            addGanttEntry(
+                gantt,
+                -1,
+                currentTime,
+                nextArrival
+            );
+
             currentTime = nextArrival;
             continue;
         }
@@ -324,7 +456,18 @@ std::vector<Process> Scheduler::priorityScheduling(
         Process& p = processes[selected];
 
         p.startTime = currentTime;
+
+        int executionStart = currentTime;
+
         currentTime += p.burstTime;
+
+        addGanttEntry(
+            gantt,
+            p.pid,
+            executionStart,
+            currentTime
+        );
+
         p.completionTime = currentTime;
 
         p.turnaroundTime =
@@ -348,7 +491,8 @@ std::vector<Process> Scheduler::priorityScheduling(
 
 std::vector<Process> Scheduler::priorityWithAging(
     std::vector<Process> processes,
-    int agingInterval)
+    int agingInterval,
+    std::vector<GanttEntry>* gantt)
 {
     int n = processes.size();
     int completed = 0;
@@ -411,6 +555,13 @@ std::vector<Process> Scheduler::priorityWithAging(
                 }
             }
 
+            addGanttEntry(
+                gantt,
+                -1,
+                currentTime,
+                nextArrival
+            );
+
             currentTime = nextArrival;
             continue;
         }
@@ -419,7 +570,16 @@ std::vector<Process> Scheduler::priorityWithAging(
 
         p.startTime = currentTime;
 
+        int executionStart = currentTime;
+
         currentTime += p.burstTime;
+
+        addGanttEntry(
+            gantt,
+            p.pid,
+            executionStart,
+            currentTime
+        );
 
         p.completionTime = currentTime;
 
