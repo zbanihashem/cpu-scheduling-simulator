@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <queue>
 
 
 std::vector<Process> Scheduler::fcfs(std::vector<Process> processes)
@@ -112,7 +113,6 @@ std::vector<Process> Scheduler::srtf(std::vector<Process> processes)
 
     std::vector<Process> result;
 
-    // Initialize runtime fields.
     for (Process& p : processes) {
         p.remainingTime = p.burstTime;
         p.startTime = -1;
@@ -124,8 +124,6 @@ std::vector<Process> Scheduler::srtf(std::vector<Process> processes)
         int shortestRemaining =
             std::numeric_limits<int>::max();
 
-        // Select the arrived process with the
-        // shortest remaining CPU time.
         for (int i = 0; i < n; i++) {
 
             if (processes[i].arrivalTime <= currentTime &&
@@ -142,7 +140,6 @@ std::vector<Process> Scheduler::srtf(std::vector<Process> processes)
             }
         }
 
-        // No process is currently ready.
         if (selected == -1) {
             currentTime++;
             continue;
@@ -150,17 +147,105 @@ std::vector<Process> Scheduler::srtf(std::vector<Process> processes)
 
         Process& p = processes[selected];
 
-        // Record start time only on first CPU execution.
         if (p.startTime == -1) {
             p.startTime = currentTime;
         }
 
-        // Execute for one time unit.
         p.remainingTime--;
         currentTime++;
 
-        // Process has finished.
         if (p.remainingTime == 0) {
+
+            p.completionTime = currentTime;
+
+            p.turnaroundTime =
+                p.completionTime - p.arrivalTime;
+
+            p.waitingTime =
+                p.turnaroundTime - p.burstTime;
+
+            p.responseTime =
+                p.startTime - p.arrivalTime;
+
+            completed++;
+
+            result.push_back(p);
+        }
+    }
+
+    return result;
+}
+
+
+std::vector<Process> Scheduler::roundRobin(
+    std::vector<Process> processes,
+    int quantum)
+{
+    int n = processes.size();
+    int completed = 0;
+    int currentTime = 0;
+
+    std::vector<Process> result;
+    std::queue<int> readyQueue;
+    std::vector<bool> added(n, false);
+
+    for (Process& p : processes) {
+        p.remainingTime = p.burstTime;
+        p.startTime = -1;
+    }
+
+    while (completed < n) {
+
+        // Add all processes that have arrived.
+        for (int i = 0; i < n; i++) {
+            if (!added[i] &&
+                processes[i].arrivalTime <= currentTime) {
+
+                readyQueue.push(i);
+                added[i] = true;
+            }
+        }
+
+        // CPU is idle if no process is ready.
+        if (readyQueue.empty()) {
+            currentTime++;
+            continue;
+        }
+
+        int index = readyQueue.front();
+        readyQueue.pop();
+
+        Process& p = processes[index];
+
+        // First time this process gets the CPU.
+        if (p.startTime == -1) {
+            p.startTime = currentTime;
+        }
+
+        int executionTime =
+            std::min(quantum, p.remainingTime);
+
+        p.remainingTime -= executionTime;
+        currentTime += executionTime;
+
+        // Processes may have arrived while this process
+        // was using the CPU.
+        for (int i = 0; i < n; i++) {
+            if (!added[i] &&
+                processes[i].arrivalTime <= currentTime) {
+
+                readyQueue.push(i);
+                added[i] = true;
+            }
+        }
+
+        if (p.remainingTime > 0) {
+
+            // Process is not finished.
+            // Put it at the end of the ready queue.
+            readyQueue.push(index);
+
+        } else {
 
             p.completionTime = currentTime;
 

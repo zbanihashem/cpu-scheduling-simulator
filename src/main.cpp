@@ -37,6 +37,8 @@ int main()
         {5, 4, 2, 3}
     };
 
+    const int quantum = 2;
+
     cout << "CPU Scheduling Simulator\n";
     cout << "========================\n\n";
 
@@ -60,7 +62,13 @@ int main()
     vector<Process> srtfResult =
         Scheduler::srtf(processes);
 
-    printResult("FCFS Result", fcfsResult);
+    vector<Process> rrResult =
+        Scheduler::roundRobin(processes, quantum);
+
+    printResult(
+        "FCFS Result",
+        fcfsResult
+    );
 
     printResult(
         "SJF (Non-preemptive) Result",
@@ -70,6 +78,11 @@ int main()
     printResult(
         "SRTF (Preemptive SJF) Result",
         srtfResult
+    );
+
+    printResult(
+        "Round Robin Result (Quantum = 2)",
+        rrResult
     );
 
     return 0;
