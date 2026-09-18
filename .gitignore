@@ -1,4 +1,5 @@
 scheduler
 scheduler_tests
 multicore_tests
+multicore_srtf_tests
 *.o
