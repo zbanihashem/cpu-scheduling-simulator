@@ -3,4 +3,5 @@ scheduler_tests
 multicore_tests
 multicore_srtf_tests
 multicore_rr_tests
+*:Zone.Identifier
 *.o
