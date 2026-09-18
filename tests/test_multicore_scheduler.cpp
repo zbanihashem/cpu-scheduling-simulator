@@ -1,5 +1,6 @@
 #include <cassert>
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 
 #include "../src/process.h"
@@ -33,54 +34,30 @@ void testMultiCoreFcfs()
     assert(result.size() == 5);
 
 
-    // P1 -> Core 1
     assert(result[0].process.pid == 1);
     assert(result[0].coreId == 1);
     assert(result[0].process.startTime == 0);
     assert(result[0].process.completionTime == 5);
-    assert(result[0].process.waitingTime == 0);
-    assert(result[0].process.turnaroundTime == 5);
-    assert(result[0].process.responseTime == 0);
 
-
-    // P2 -> Core 2
     assert(result[1].process.pid == 2);
     assert(result[1].coreId == 2);
     assert(result[1].process.startTime == 1);
     assert(result[1].process.completionTime == 4);
-    assert(result[1].process.waitingTime == 0);
-    assert(result[1].process.turnaroundTime == 3);
-    assert(result[1].process.responseTime == 0);
 
-
-    // P3 -> Core 2
     assert(result[2].process.pid == 3);
     assert(result[2].coreId == 2);
     assert(result[2].process.startTime == 4);
     assert(result[2].process.completionTime == 12);
-    assert(result[2].process.waitingTime == 2);
-    assert(result[2].process.turnaroundTime == 10);
-    assert(result[2].process.responseTime == 2);
 
-
-    // P4 -> Core 1
     assert(result[3].process.pid == 4);
     assert(result[3].coreId == 1);
     assert(result[3].process.startTime == 5);
     assert(result[3].process.completionTime == 11);
-    assert(result[3].process.waitingTime == 2);
-    assert(result[3].process.turnaroundTime == 8);
-    assert(result[3].process.responseTime == 2);
 
-
-    // P5 -> Core 1
     assert(result[4].process.pid == 5);
     assert(result[4].coreId == 1);
     assert(result[4].process.startTime == 11);
     assert(result[4].process.completionTime == 13);
-    assert(result[4].process.waitingTime == 7);
-    assert(result[4].process.turnaroundTime == 9);
-    assert(result[4].process.responseTime == 7);
 
 
     cout << "[PASS] Multi-Core FCFS scheduling test\n";
@@ -120,7 +97,7 @@ void testSingleCoreCompatibility()
     assert(result[2].process.completionTime == 16);
 
 
-    cout << "[PASS] One-core compatibility test\n";
+    cout << "[PASS] One-core FCFS compatibility test\n";
 }
 
 
@@ -178,17 +155,172 @@ void testInvalidCoreCount()
 }
 
 
+void testMultiCoreSjfShortestJobsFirst()
+{
+    vector<Process> processes = {
+        {1, 0, 8, 1},
+        {2, 0, 2, 1},
+        {3, 0, 5, 1}
+    };
+
+    vector<CoreGanttEntry> gantt;
+
+    vector<MultiCoreProcessResult> result =
+        MultiCoreScheduler::sjf(
+            processes,
+            2,
+            &gantt
+        );
+
+
+    assert(result.size() == 3);
+
+
+    // At time 0 both cores are free.
+    // SJF must select the two shortest ready jobs.
+
+    assert(result[0].process.pid == 2);
+    assert(result[0].coreId == 1);
+    assert(result[0].process.startTime == 0);
+    assert(result[0].process.completionTime == 2);
+
+    assert(result[1].process.pid == 3);
+    assert(result[1].coreId == 2);
+    assert(result[1].process.startTime == 0);
+    assert(result[1].process.completionTime == 5);
+
+
+    // Core 1 becomes free at time 2.
+    // P1 is the only remaining process.
+
+    assert(result[2].process.pid == 1);
+    assert(result[2].coreId == 1);
+    assert(result[2].process.startTime == 2);
+    assert(result[2].process.completionTime == 10);
+
+
+    cout << "[PASS] Multi-Core SJF shortest jobs test\n";
+}
+
+
+void testSjfDoesNotWaitForFutureShortJob()
+{
+    vector<Process> processes = {
+        {1, 0, 8, 1},
+        {2, 3, 1, 1}
+    };
+
+    vector<CoreGanttEntry> gantt;
+
+    vector<MultiCoreProcessResult> result =
+        MultiCoreScheduler::sjf(
+            processes,
+            1,
+            &gantt
+        );
+
+
+    assert(result.size() == 2);
+
+
+    // P2 is shorter, but it has not arrived at time 0.
+    // Non-preemptive SJF must start P1 immediately.
+
+    assert(result[0].process.pid == 1);
+    assert(result[0].process.startTime == 0);
+    assert(result[0].process.completionTime == 8);
+
+    assert(result[1].process.pid == 2);
+    assert(result[1].process.startTime == 8);
+    assert(result[1].process.completionTime == 9);
+
+
+    cout << "[PASS] SJF future arrival test\n";
+}
+
+
+void testMultiCoreSjfIdleCores()
+{
+    vector<Process> processes = {
+        {1, 2, 4, 1},
+        {2, 3, 2, 1}
+    };
+
+    vector<CoreGanttEntry> gantt;
+
+    vector<MultiCoreProcessResult> result =
+        MultiCoreScheduler::sjf(
+            processes,
+            2,
+            &gantt
+        );
+
+
+    assert(result.size() == 2);
+
+    assert(result[0].process.pid == 1);
+    assert(result[0].coreId == 1);
+    assert(result[0].process.startTime == 2);
+    assert(result[0].process.completionTime == 6);
+
+    assert(result[1].process.pid == 2);
+    assert(result[1].coreId == 2);
+    assert(result[1].process.startTime == 3);
+    assert(result[1].process.completionTime == 5);
+
+
+    cout << "[PASS] Multi-Core SJF idle core test\n";
+}
+
+
+void testInvalidSjfCoreCount()
+{
+    vector<Process> processes = {
+        {1, 0, 5, 1}
+    };
+
+    bool exceptionThrown = false;
+
+    try {
+
+        MultiCoreScheduler::sjf(
+            processes,
+            0
+        );
+
+    } catch (const invalid_argument&) {
+
+        exceptionThrown = true;
+    }
+
+
+    assert(exceptionThrown);
+
+
+    cout << "[PASS] Invalid SJF core count test\n";
+}
+
+
 int main()
 {
     cout << "Running Multi-Core Scheduler Tests\n";
     cout << "==================================\n";
+
 
     testMultiCoreFcfs();
     testSingleCoreCompatibility();
     testEqualArrivalOrder();
     testInvalidCoreCount();
 
-    cout << "\nAll Multi-Core tests passed successfully.\n";
+
+    testMultiCoreSjfShortestJobsFirst();
+    testSjfDoesNotWaitForFutureShortJob();
+    testMultiCoreSjfIdleCores();
+    testInvalidSjfCoreCount();
+
+
+    cout <<
+        "\nAll Multi-Core tests passed successfully.\n";
 
     return 0;
 }

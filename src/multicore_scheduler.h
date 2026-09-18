@@ -27,6 +27,12 @@ public:
         int coreCount,
         std::vector<CoreGanttEntry>* gantt = nullptr
     );
+
+    static std::vector<MultiCoreProcessResult> sjf(
+        std::vector<Process> processes,
+        int coreCount,
+        std::vector<CoreGanttEntry>* gantt = nullptr
+    );
 };
 
 
