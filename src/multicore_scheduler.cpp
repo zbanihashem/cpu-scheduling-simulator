@@ -1298,6 +1298,38 @@ MultiCoreScheduler::roundRobin(
             );
 
 
+            /*
+             * If this core has been idle since its previous
+             * Gantt entry, record that gap before assigning
+             * the next process.
+             */
+            if (gantt != nullptr) {
+
+                int lastEndTime = 0;
+
+                for (auto it = gantt->rbegin();
+                     it != gantt->rend();
+                     ++it) {
+
+                    if (it->coreId == core + 1) {
+                        lastEndTime = it->endTime;
+                        break;
+                    }
+                }
+
+                if (lastEndTime < currentTime) {
+
+                    addCoreGanttEntry(
+                        gantt,
+                        core + 1,
+                        -1,
+                        lastEndTime,
+                        currentTime
+                    );
+                }
+            }
+
+
             Process& process =
                 processes[processIndex];
 

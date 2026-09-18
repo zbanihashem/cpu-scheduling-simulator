@@ -348,10 +348,12 @@ void printMultiCoreComparisonRow(
 void printMultiCoreComparison(
     const vector<MultiCoreProcessResult>& fcfsResult,
     const vector<MultiCoreProcessResult>& sjfResult,
+    const vector<MultiCoreProcessResult>& srtfResult,
+    const vector<MultiCoreProcessResult>& rrResult,
     const vector<MultiCoreProcessResult>& priorityResult,
     int coreCount)
 {
-    cout << "\nMulti-Core Algorithm Comparison\n";
+    cout << "\n\nMulti-Core Algorithm Comparison\n";
 
     cout <<
         "==============================================================\n";
@@ -382,6 +384,16 @@ void printMultiCoreComparison(
     printMultiCoreComparisonRow(
         "SJF" + suffix,
         sjfResult
+    );
+
+    printMultiCoreComparisonRow(
+        "SRTF" + suffix,
+        srtfResult
+    );
+
+    printMultiCoreComparisonRow(
+        "Round Robin" + suffix,
+        rrResult
     );
 
     printMultiCoreComparisonRow(
@@ -606,13 +618,16 @@ void runSchedulers(
 
 void runMultiCoreSchedulers(
     const vector<Process>& processes,
-    int coreCount)
+    int coreCount,
+    int quantum)
 {
     const int agingInterval = 3;
 
 
     vector<CoreGanttEntry> fcfsGantt;
     vector<CoreGanttEntry> sjfGantt;
+    vector<CoreGanttEntry> srtfGantt;
+    vector<CoreGanttEntry> rrGantt;
     vector<CoreGanttEntry> priorityGantt;
     vector<CoreGanttEntry> agingGantt;
 
@@ -630,6 +645,23 @@ void runMultiCoreSchedulers(
             processes,
             coreCount,
             &sjfGantt
+        );
+
+
+    vector<MultiCoreProcessResult> srtfResult =
+        MultiCoreScheduler::srtf(
+            processes,
+            coreCount,
+            &srtfGantt
+        );
+
+
+    vector<MultiCoreProcessResult> rrResult =
+        MultiCoreScheduler::roundRobin(
+            processes,
+            coreCount,
+            quantum,
+            &rrGantt
         );
 
 
@@ -681,6 +713,42 @@ void runMultiCoreSchedulers(
 
 
     printMultiCoreResult(
+        "Multi-Core SRTF Result (" +
+            to_string(coreCount) +
+            " Cores)",
+        srtfResult
+    );
+
+
+    printMultiCoreGantt(
+        "Multi-Core SRTF",
+        srtfGantt,
+        coreCount
+    );
+
+
+    string rrTitle =
+        "Multi-Core Round Robin Result (" +
+        to_string(coreCount) +
+        " Cores, Quantum = " +
+        to_string(quantum) +
+        ")";
+
+
+    printMultiCoreResult(
+        rrTitle,
+        rrResult
+    );
+
+
+    printMultiCoreGantt(
+        "Multi-Core Round Robin",
+        rrGantt,
+        coreCount
+    );
+
+
+    printMultiCoreResult(
         "Multi-Core Priority Result (" +
             to_string(coreCount) +
             " Cores)",
@@ -699,7 +767,7 @@ void runMultiCoreSchedulers(
         "Multi-Core Priority with Aging "
         "(Interval = " +
             to_string(agingInterval) +
-            ")",
+        ")",
         agingResult
     );
 
@@ -714,6 +782,8 @@ void runMultiCoreSchedulers(
     printMultiCoreComparison(
         fcfsResult,
         sjfResult,
+        srtfResult,
+        rrResult,
         priorityResult,
         coreCount
     );
@@ -828,7 +898,8 @@ void runDefaultDemo()
 
     runMultiCoreSchedulers(
         processes,
-        coreCount
+        coreCount,
+        quantum
     );
 
 
@@ -885,7 +956,8 @@ void runCustomSimulation()
 
     runMultiCoreSchedulers(
         processes,
-        coreCount
+        coreCount,
+        quantum
     );
 }
 
