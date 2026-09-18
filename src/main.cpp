@@ -7,6 +7,7 @@
 #include "process.h"
 #include "scheduler.h"
 #include "gantt.h"
+#include "multicore_scheduler.h"
 
 using namespace std;
 
@@ -82,6 +83,74 @@ void printGantt(
 }
 
 
+void printMultiCoreResult(
+    const string& title,
+    const vector<MultiCoreProcessResult>& result)
+{
+    cout << "\n" << title << "\n";
+
+    cout <<
+        "------------------------------------------------------------------\n";
+
+    cout <<
+        "PID\tCore\tAT\tBT\tST\tCT\tWT\tTAT\tRT\n";
+
+    for (const MultiCoreProcessResult& item : result) {
+
+        const Process& p = item.process;
+
+        cout << "P" << p.pid << "\t"
+             << item.coreId << "\t"
+             << p.arrivalTime << "\t"
+             << p.burstTime << "\t"
+             << p.startTime << "\t"
+             << p.completionTime << "\t"
+             << p.waitingTime << "\t"
+             << p.turnaroundTime << "\t"
+             << p.responseTime << "\n";
+    }
+}
+
+
+void printMultiCoreGantt(
+    const vector<CoreGanttEntry>& gantt,
+    int coreCount)
+{
+    cout << "\nMulti-Core Gantt Chart\n";
+    cout << "======================\n";
+
+    for (int core = 1;
+         core <= coreCount;
+         core++) {
+
+        cout << "Core " << core << ": ";
+
+        for (const CoreGanttEntry& entry : gantt) {
+
+            if (entry.coreId != core) {
+                continue;
+            }
+
+            cout << "["
+                 << entry.startTime
+                 << "-";
+
+            if (entry.pid == -1) {
+                cout << "IDLE";
+            } else {
+                cout << "P" << entry.pid;
+            }
+
+            cout << "-"
+                 << entry.endTime
+                 << "] ";
+        }
+
+        cout << "\n";
+    }
+}
+
+
 AverageMetrics calculateAverageMetrics(
     const vector<Process>& processes)
 {
@@ -96,6 +165,29 @@ AverageMetrics calculateAverageMetrics(
     }
 
     int count = processes.size();
+
+    return {
+        totalWaiting / count,
+        totalTurnaround / count,
+        totalResponse / count
+    };
+}
+
+
+AverageMetrics calculateMultiCoreAverageMetrics(
+    const vector<MultiCoreProcessResult>& result)
+{
+    double totalWaiting = 0.0;
+    double totalTurnaround = 0.0;
+    double totalResponse = 0.0;
+
+    for (const MultiCoreProcessResult& item : result) {
+        totalWaiting += item.process.waitingTime;
+        totalTurnaround += item.process.turnaroundTime;
+        totalResponse += item.process.responseTime;
+    }
+
+    int count = result.size();
 
     return {
         totalWaiting / count,
@@ -174,6 +266,70 @@ void printComparison(
         "Priority",
         priorityResult
     );
+}
+
+
+void printSingleVsMultiCoreComparison(
+    const vector<Process>& singleCoreResult,
+    const vector<MultiCoreProcessResult>& multiCoreResult,
+    int coreCount)
+{
+    AverageMetrics singleMetrics =
+        calculateAverageMetrics(
+            singleCoreResult
+        );
+
+    AverageMetrics multiMetrics =
+        calculateMultiCoreAverageMetrics(
+            multiCoreResult
+        );
+
+
+    cout << "\nFCFS Single-Core vs Multi-Core\n";
+
+    cout <<
+        "============================================================\n";
+
+    cout << left
+         << setw(22) << "Configuration"
+         << right
+         << setw(12) << "Avg WT"
+         << setw(14) << "Avg TAT"
+         << setw(12) << "Avg RT"
+         << "\n";
+
+    cout <<
+        "------------------------------------------------------------\n";
+
+
+    cout << left
+         << setw(22) << "Single Core"
+         << right
+         << setw(12)
+         << fixed
+         << setprecision(2)
+         << singleMetrics.waitingTime
+         << setw(14)
+         << singleMetrics.turnaroundTime
+         << setw(12)
+         << singleMetrics.responseTime
+         << "\n";
+
+
+    string multiLabel =
+        to_string(coreCount) +
+        " Cores";
+
+    cout << left
+         << setw(22) << multiLabel
+         << right
+         << setw(12)
+         << multiMetrics.waitingTime
+         << setw(14)
+         << multiMetrics.turnaroundTime
+         << setw(12)
+         << multiMetrics.responseTime
+         << "\n";
 }
 
 
@@ -364,6 +520,53 @@ void runSchedulers(
 }
 
 
+void runMultiCoreFcfs(
+    const vector<Process>& processes,
+    int coreCount)
+{
+    vector<CoreGanttEntry> multiCoreGantt;
+
+    vector<MultiCoreProcessResult>
+        multiCoreResult =
+            MultiCoreScheduler::fcfs(
+                processes,
+                coreCount,
+                &multiCoreGantt
+            );
+
+
+    vector<Process> singleCoreResult =
+        Scheduler::fcfs(
+            processes
+        );
+
+
+    string title =
+        "Multi-Core FCFS Result (" +
+        to_string(coreCount) +
+        " Cores)";
+
+
+    printMultiCoreResult(
+        title,
+        multiCoreResult
+    );
+
+
+    printMultiCoreGantt(
+        multiCoreGantt,
+        coreCount
+    );
+
+
+    printSingleVsMultiCoreComparison(
+        singleCoreResult,
+        multiCoreResult,
+        coreCount
+    );
+}
+
+
 void runAgingDemo()
 {
     vector<Process> agingTest = {
@@ -435,16 +638,29 @@ void runDefaultDemo()
     };
 
     const int quantum = 2;
+    const int coreCount = 2;
 
     cout << "\nDefault Demonstration\n";
     cout << "=====================\n";
 
     printInput(processes);
 
+
+    cout << "\n\n=== Single-Core Scheduling ===\n";
+
     runSchedulers(
         processes,
         quantum
     );
+
+
+    cout << "\n\n=== Multi-Core Scheduling ===\n";
+
+    runMultiCoreFcfs(
+        processes,
+        coreCount
+    );
+
 
     runAgingDemo();
 }
@@ -458,20 +674,40 @@ void runCustomSimulation()
     vector<Process> processes =
         readProcesses();
 
+
     int quantum =
         readInteger(
             "\nRound Robin quantum: ",
             1
         );
 
+
+    int coreCount =
+        readInteger(
+            "Number of CPU cores: ",
+            1
+        );
+
+
     cout << "\nCustom Dataset\n";
     cout << "--------------\n";
 
     printInput(processes);
 
+
+    cout << "\n\n=== Single-Core Scheduling ===\n";
+
     runSchedulers(
         processes,
         quantum
+    );
+
+
+    cout << "\n\n=== Multi-Core Scheduling ===\n";
+
+    runMultiCoreFcfs(
+        processes,
+        coreCount
     );
 }
 
