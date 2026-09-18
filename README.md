@@ -2,9 +2,7 @@
 
 A C++17 CPU scheduling simulator developed as an Operating Systems laboratory project.
 
-The program implements several common CPU scheduling algorithms, calculates scheduling metrics, generates terminal-based Gantt charts, and compares the algorithms on the same workload.
-
-The simulator can run a built-in demonstration workload or accept a custom workload interactively.
+The project simulates and compares CPU scheduling algorithms in both **single-core** and **multi-core** environments. It calculates common scheduling metrics, generates terminal-based Gantt charts, supports interactive workloads, and includes automated tests.
 
 ## Features
 
@@ -16,16 +14,18 @@ The simulator supports:
 - Round Robin (RR) with user-defined time quantum
 - Priority Scheduling - Non-preemptive
 - Priority Scheduling with Aging
+- Single-core scheduling
+- Multi-core scheduling with a configurable number of CPU cores
 - Waiting Time calculation
 - Turnaround Time calculation
 - Response Time calculation
-- Terminal-based Gantt charts
+- Terminal-based Gantt charts for each CPU core
 - CPU idle period representation
 - Average scheduling metrics
 - Algorithm comparison
 - Interactive custom process input
 - Input validation
-- Automated scheduler tests
+- Automated tests
 
 ## Scheduling Algorithms
 
@@ -45,17 +45,17 @@ The implementation in this project is non-preemptive.
 
 Shortest Remaining Time First is the preemptive version of SJF.
 
-At every scheduling decision, the ready process with the shortest remaining execution time is selected.
+At each scheduling decision, the ready processes with the shortest remaining execution times are selected.
 
 A running process may therefore be preempted when another process with a shorter remaining time becomes ready.
 
 ### Round Robin
 
-Round Robin uses a ready queue and assigns each process a limited amount of CPU time called the time quantum.
+Round Robin uses a shared ready queue and assigns each process a limited amount of CPU time called the time quantum.
 
 If a process does not finish within its quantum, it is placed back into the ready queue.
 
-The scheduling function accepts the quantum as a parameter. In custom simulation mode, the user can enter the desired quantum at runtime.
+The quantum is configurable at runtime in custom simulation mode.
 
 ### Priority Scheduling
 
@@ -88,11 +88,27 @@ effectivePriority =
     max(1, originalPriority - priorityBoost)
 ```
 
-The original priority stored in the process is not modified.
-
-Instead, the effective priority is calculated dynamically when the scheduler selects the next process.
+The original priority stored in the process is not modified. The effective priority is calculated dynamically whenever the scheduler selects another process.
 
 The Aging implementation in this project is non-preemptive.
+
+## Single-Core and Multi-Core Scheduling
+
+The simulator contains separate scheduling implementations for single-core and multi-core execution.
+
+In single-core mode, only one process can execute at a time.
+
+In multi-core mode, multiple processes may execute simultaneously. The number of CPU cores is configurable in custom simulation mode.
+
+The multi-core simulator uses a simplified **global scheduling model**:
+
+- All processes belong to a common workload.
+- Ready processes are selected from a shared scheduling state or ready queue.
+- A free core can execute an eligible ready process.
+- Preemptive algorithms may execute different time slices of the same process on different cores.
+- Processor affinity, migration cost, cache effects, NUMA behavior, and operating-system-specific scheduling details are outside the scope of this simulator.
+
+For preemptive multi-core algorithms such as SRTF and Round Robin, the `Core` value in the result table represents the core on which the process **completed**. The per-core Gantt chart shows the complete execution history and should be used to see migrations between cores.
 
 ## Scheduling Metrics
 
@@ -102,11 +118,6 @@ The simulator calculates three main scheduling metrics.
 
 ```text
 Turnaround Time = Completion Time - Arrival Time
-```
-
-or:
-
-```text
 TAT = CT - AT
 ```
 
@@ -114,11 +125,6 @@ TAT = CT - AT
 
 ```text
 Waiting Time = Turnaround Time - Burst Time
-```
-
-or:
-
-```text
 WT = TAT - BT
 ```
 
@@ -126,11 +132,6 @@ WT = TAT - BT
 
 ```text
 Response Time = Start Time - Arrival Time
-```
-
-or:
-
-```text
 RT = ST - AT
 ```
 
@@ -167,23 +168,28 @@ cpu-scheduler/
 ├── Makefile
 ├── README.md
 ├── src/
-│   ├── gantt.h
 │   ├── main.cpp
 │   ├── process.h
 │   ├── scheduler.cpp
-│   └── scheduler.h
+│   ├── scheduler.h
+│   ├── gantt.h
+│   ├── multicore_scheduler.cpp
+│   └── multicore_scheduler.h
 └── tests/
-    └── test_scheduler.cpp
+    ├── test_scheduler.cpp
+    ├── test_multicore_scheduler.cpp
+    ├── test_multicore_srtf.cpp
+    └── test_multicore_rr.cpp
 ```
 
 ## Requirements
 
 The project requires:
 
-- A C++17 compatible compiler
+- A C++17-compatible compiler
 - GNU Make
 
-For example, on a Linux system using g++:
+For example:
 
 ```bash
 g++ --version
@@ -232,7 +238,7 @@ Choice:
 
 ### Default Demonstration
 
-Option 1 runs the built-in workload through all core scheduling algorithms.
+Option 1 runs a built-in workload through both the single-core and multi-core schedulers.
 
 The default workload is:
 
@@ -245,13 +251,15 @@ P4     3          6        2
 P5     4          2        3
 ```
 
-Round Robin uses:
+The default configuration uses:
 
 ```text
-Quantum = 2
+Round Robin Quantum = 2
+CPU Cores           = 2
+Aging Interval      = 3
 ```
 
-The default demonstration also runs a separate Priority Scheduling example designed specifically to demonstrate Aging.
+The demonstration also runs a separate single-core Priority Scheduling workload specifically designed to show the effect of Aging.
 
 ### Custom Simulation
 
@@ -265,34 +273,12 @@ Arrival time
 Burst time
 Priority
 Round Robin quantum
+Number of CPU cores
 ```
 
-For example:
+The same workload is then executed by the single-core and multi-core scheduling implementations.
 
-```text
-Number of processes: 3
-
-Process P1
-Arrival time: 0
-Burst time: 5
-Priority: 2
-
-Process P2
-Arrival time: 1
-Burst time: 2
-Priority: 1
-
-Process P3
-Arrival time: 4
-Burst time: 3
-Priority: 3
-
-Round Robin quantum: 3
-```
-
-The custom workload is then executed using FCFS, SJF, SRTF, Round Robin, and Priority Scheduling.
-
-The program prints individual process metrics, Gantt charts, and the final algorithm comparison.
+The program prints process metrics, Gantt charts, and algorithm comparison tables.
 
 ## Input Validation
 
@@ -301,24 +287,36 @@ Interactive input is validated before it is accepted.
 The current rules are:
 
 ```text
-Number of processes >= 1
-Arrival time        >= 0
-Burst time          >= 1
-Priority            >= 1
-Round Robin quantum >= 1
+Number of processes  >= 1
+Arrival time         >= 0
+Burst time           >= 1
+Priority             >= 1
+Round Robin quantum  >= 1
+Number of CPU cores  >= 1
 ```
 
 Invalid values are rejected and the program asks for the value again.
 
-## Gantt Chart
+The multi-core scheduler functions also reject invalid core counts, and Round Robin and Aging reject invalid quantum and aging interval values.
 
-Each scheduling algorithm can generate a terminal-based execution timeline.
+## Gantt Charts
 
-For example:
+Each scheduling algorithm generates a terminal-based execution timeline.
+
+A single-core example:
 
 ```text
 SRTF Gantt Chart
 [0-P1-1] [1-P2-4] [4-P5-6] [6-P1-10] [10-P4-16] [16-P3-24]
+```
+
+A multi-core example:
+
+```text
+Multi-Core SJF Gantt Chart
+======================
+Core 1: [0-P1-5] [5-P4-11]
+Core 2: [0-IDLE-1] [1-P2-4] [4-P5-6] [6-P3-14]
 ```
 
 Each segment contains:
@@ -333,19 +331,13 @@ CPU idle periods are represented using:
 IDLE
 ```
 
-For example:
-
-```text
-[0-IDLE-2] [2-P1-5] [5-IDLE-8] [8-P2-10]
-```
-
-Consecutive execution units belonging to the same process are merged into a single Gantt segment.
+Consecutive execution units belonging to the same process on the same core are merged into a single Gantt segment when appropriate.
 
 ## Algorithm Comparison
 
-The simulator calculates average Waiting Time, Turnaround Time, and Response Time for each core scheduling algorithm.
+The simulator calculates average Waiting Time, Turnaround Time, and Response Time for the scheduling algorithms.
 
-For the default workload:
+For the default single-core workload:
 
 ```text
 Algorithm                   Avg WT       Avg TAT      Avg RT
@@ -357,11 +349,21 @@ Round Robin                  10.60         15.40        2.80
 Priority                      6.60         11.40        6.60
 ```
 
-The results depend on the workload and on the performance metric being considered.
+For the default two-core workload:
 
-No single scheduling algorithm is optimal for every workload and every metric.
+```text
+Algorithm                     Avg WT       Avg TAT      Avg RT
+--------------------------------------------------------------
+FCFS (2 cores)                  2.20          7.00        2.20
+SJF (2 cores)                   1.20          6.00        1.20
+SRTF (2 cores)                  1.20          6.00        1.20
+Round Robin (2 cores)           2.80          7.60        0.60
+Priority (2 cores)              1.40          6.20        1.40
+```
 
-For example, in the default workload SRTF produces a lower average Waiting Time than Round Robin, while Round Robin produces a lower average Response Time.
+The results depend on the workload and on the performance metric being considered. No single scheduling algorithm is optimal for every workload and every metric.
+
+For example, in the default single-core workload SRTF produces a lower average Waiting Time than Round Robin, while Round Robin produces a lower average Response Time.
 
 ## Aging Demonstration
 
@@ -384,52 +386,46 @@ With:
 Aging Interval = 3
 ```
 
-its effective priority improves while it waits.
+its effective priority improves while it waits, and it starts at time 16 instead of time 20.
 
-It therefore starts at time 16 instead of time 20.
-
-The resulting Gantt chart is:
-
-```text
-Priority with Aging Gantt Chart
-[0-P1-4] [4-P3-8] [8-P4-12] [12-P5-16] [16-P2-19] [19-P6-23]
-```
-
-This example demonstrates how Aging can reduce long waiting times and reduce the risk of starvation.
+This demonstrates how Aging can reduce long waits and reduce the risk of starvation. It does not imply that Aging always improves every average scheduling metric.
 
 ## Automated Tests
 
-The project includes an automated test program located in:
-
-```text
-tests/test_scheduler.cpp
-```
-
-Run the tests with:
+Run all automated tests with:
 
 ```bash
 make test
 ```
 
-The current test suite verifies:
-
-- CPU idle periods
-- Processes with identical arrival times
-- SJF scheduling order
-- Round Robin using a different quantum
-- Gantt chart execution intervals
-
-A successful test run produces:
+The test suite contains four executables:
 
 ```text
-Running Scheduler Tests
-=======================
-[PASS] CPU idle test
-[PASS] Same arrival time test
-[PASS] Round Robin quantum test
-
-All tests passed successfully.
+scheduler_tests
+multicore_tests
+multicore_srtf_tests
+multicore_rr_tests
 ```
+
+The tests cover:
+
+- Single-core idle behavior
+- Processes with identical arrival times
+- Round Robin quantum behavior
+- Multi-core FCFS
+- Multi-core SJF
+- Multi-core Priority Scheduling
+- Multi-core Priority Scheduling with Aging
+- Multi-core SRTF
+- SRTF preemption and metrics
+- Multi-core Round Robin
+- Round Robin ready-queue behavior
+- Invalid core counts
+- Invalid Round Robin quantum
+- Invalid Aging interval
+- Multi-core idle periods
+
+A successful test run ends with all test groups reporting that their tests passed.
 
 ## Cleaning the Project
 
@@ -447,17 +443,14 @@ make rebuild
 
 ## Implementation Notes
 
-The simulator uses integer time units.
-
-FCFS, SJF, Priority Scheduling, and Priority Scheduling with Aging are non-preemptive.
-
-SRTF is preemptive and evaluates scheduling decisions as simulated time advances.
-
-Round Robin is preemptive and uses a configurable time quantum.
-
-For equal scheduling criteria, the current implementation selects the first eligible process encountered according to the stored process order.
-
-The project simulates CPU scheduling behavior. It does not modify or interact with the real operating system CPU scheduler.
+- The simulator uses integer time units.
+- FCFS, SJF, Priority Scheduling, and Priority Scheduling with Aging are non-preemptive.
+- SRTF and Round Robin are preemptive.
+- Multi-core scheduling uses a simplified global scheduling model.
+- Multi-core SRTF makes scheduling decisions as simulated time advances.
+- Multi-core Round Robin uses a shared ready queue and configurable time quantum.
+- Aging changes effective scheduling priority without modifying the original process priority.
+- The simulator models scheduling behavior only; it does not modify or interact with the real operating-system CPU scheduler.
 
 ## Portability
 
@@ -465,10 +458,10 @@ The project uses standard C++17 and does not depend on platform-specific schedul
 
 The primary development environment is Ubuntu Linux under WSL2 using GNU g++ and GNU Make.
 
-The project is intended to compile on other Linux distributions with a C++17-compatible compiler.
+The code is intended to compile on other Linux distributions with a C++17-compatible compiler.
 
 ## Possible Future Extension
 
-A possible extension is Multilevel Feedback Queue (MLFQ) scheduling.
+Multilevel Feedback Queue (MLFQ) is a possible bonus extension.
 
-MLFQ is intentionally outside the core implementation so that the required scheduling algorithms, metrics, comparison, testing, and documentation remain the primary focus of the project.
+MLFQ is intentionally outside the current core implementation. The required single-core and multi-core scheduling algorithms, scheduling metrics, Gantt charts, comparisons, testing, and documentation are implemented first so the project remains focused and testable.
