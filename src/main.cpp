@@ -65,7 +65,9 @@ void printGantt(
     cout << "\n" << title << " Gantt Chart\n";
 
     for (const GanttEntry& entry : gantt) {
-        cout << "[" << entry.startTime
+
+        cout << "["
+             << entry.startTime
              << "-";
 
         if (entry.pid == -1) {
@@ -97,7 +99,8 @@ void printMultiCoreResult(
 
     for (const MultiCoreProcessResult& item : result) {
 
-        const Process& p = item.process;
+        const Process& p =
+            item.process;
 
         cout << "P" << p.pid << "\t"
              << item.coreId << "\t"
@@ -117,20 +120,28 @@ void printMultiCoreGantt(
     const vector<CoreGanttEntry>& gantt,
     int coreCount)
 {
-    cout << "\n" << title << " Gantt Chart\n";
+    cout << "\n"
+         << title
+         << " Gantt Chart\n";
+
     cout << "======================\n";
+
 
     for (int core = 1;
          core <= coreCount;
          core++) {
 
-        cout << "Core " << core << ": ";
+        cout << "Core "
+             << core
+             << ": ";
+
 
         for (const CoreGanttEntry& entry : gantt) {
 
             if (entry.coreId != core) {
                 continue;
             }
+
 
             cout << "["
                  << entry.startTime
@@ -147,6 +158,7 @@ void printMultiCoreGantt(
                  << "] ";
         }
 
+
         cout << "\n";
     }
 }
@@ -159,13 +171,25 @@ AverageMetrics calculateAverageMetrics(
     double totalTurnaround = 0.0;
     double totalResponse = 0.0;
 
+
     for (const Process& p : processes) {
-        totalWaiting += p.waitingTime;
-        totalTurnaround += p.turnaroundTime;
-        totalResponse += p.responseTime;
+
+        totalWaiting +=
+            p.waitingTime;
+
+        totalTurnaround +=
+            p.turnaroundTime;
+
+        totalResponse +=
+            p.responseTime;
     }
 
-    int count = processes.size();
+
+    double count =
+        static_cast<double>(
+            processes.size()
+        );
+
 
     return {
         totalWaiting / count,
@@ -182,13 +206,25 @@ AverageMetrics calculateMultiCoreAverageMetrics(
     double totalTurnaround = 0.0;
     double totalResponse = 0.0;
 
+
     for (const MultiCoreProcessResult& item : result) {
-        totalWaiting += item.process.waitingTime;
-        totalTurnaround += item.process.turnaroundTime;
-        totalResponse += item.process.responseTime;
+
+        totalWaiting +=
+            item.process.waitingTime;
+
+        totalTurnaround +=
+            item.process.turnaroundTime;
+
+        totalResponse +=
+            item.process.responseTime;
     }
 
-    int count = result.size();
+
+    double count =
+        static_cast<double>(
+            result.size()
+        );
+
 
     return {
         totalWaiting / count,
@@ -203,19 +239,27 @@ void printComparisonRow(
     const vector<Process>& result)
 {
     AverageMetrics metrics =
-        calculateAverageMetrics(result);
+        calculateAverageMetrics(
+            result
+        );
+
 
     cout << left
-         << setw(22) << algorithm
+         << setw(22)
+         << algorithm
+
          << right
          << setw(12)
          << fixed
          << setprecision(2)
          << metrics.waitingTime
+
          << setw(14)
          << metrics.turnaroundTime
+
          << setw(12)
          << metrics.responseTime
+
          << "\n";
 }
 
@@ -243,16 +287,36 @@ void printComparison(
     cout <<
         "------------------------------------------------------------\n";
 
-    printComparisonRow("FCFS", fcfsResult);
-    printComparisonRow("SJF", sjfResult);
-    printComparisonRow("SRTF", srtfResult);
-    printComparisonRow("Round Robin", rrResult);
-    printComparisonRow("Priority", priorityResult);
+
+    printComparisonRow(
+        "FCFS",
+        fcfsResult
+    );
+
+    printComparisonRow(
+        "SJF",
+        sjfResult
+    );
+
+    printComparisonRow(
+        "SRTF",
+        srtfResult
+    );
+
+    printComparisonRow(
+        "Round Robin",
+        rrResult
+    );
+
+    printComparisonRow(
+        "Priority",
+        priorityResult
+    );
 }
 
 
 void printMultiCoreComparisonRow(
-    const string& configuration,
+    const string& label,
     const vector<MultiCoreProcessResult>& result)
 {
     AverageMetrics metrics =
@@ -260,35 +324,40 @@ void printMultiCoreComparisonRow(
             result
         );
 
+
     cout << left
-         << setw(22) << configuration
+         << setw(24)
+         << label
+
          << right
          << setw(12)
          << fixed
          << setprecision(2)
          << metrics.waitingTime
+
          << setw(14)
          << metrics.turnaroundTime
+
          << setw(12)
          << metrics.responseTime
+
          << "\n";
 }
 
 
-void printSingleVsMultiCoreComparison(
-    const vector<Process>& singleFcfs,
-    const vector<Process>& singleSjf,
-    const vector<MultiCoreProcessResult>& multiFcfs,
-    const vector<MultiCoreProcessResult>& multiSjf,
+void printMultiCoreComparison(
+    const vector<MultiCoreProcessResult>& fcfsResult,
+    const vector<MultiCoreProcessResult>& sjfResult,
+    const vector<MultiCoreProcessResult>& priorityResult,
     int coreCount)
 {
-    cout << "\nSingle-Core vs Multi-Core Comparison\n";
+    cout << "\nMulti-Core Algorithm Comparison\n";
 
     cout <<
-        "============================================================\n";
+        "==============================================================\n";
 
     cout << left
-         << setw(22) << "Configuration"
+         << setw(24) << "Algorithm"
          << right
          << setw(12) << "Avg WT"
          << setw(14) << "Avg TAT"
@@ -296,64 +365,28 @@ void printSingleVsMultiCoreComparison(
          << "\n";
 
     cout <<
-        "------------------------------------------------------------\n";
+        "--------------------------------------------------------------\n";
 
 
-    AverageMetrics singleFcfsMetrics =
-        calculateAverageMetrics(
-            singleFcfs
-        );
-
-    cout << left
-         << setw(22) << "FCFS - 1 Core"
-         << right
-         << setw(12)
-         << fixed
-         << setprecision(2)
-         << singleFcfsMetrics.waitingTime
-         << setw(14)
-         << singleFcfsMetrics.turnaroundTime
-         << setw(12)
-         << singleFcfsMetrics.responseTime
-         << "\n";
-
-
-    AverageMetrics singleSjfMetrics =
-        calculateAverageMetrics(
-            singleSjf
-        );
-
-    cout << left
-         << setw(22) << "SJF - 1 Core"
-         << right
-         << setw(12)
-         << singleSjfMetrics.waitingTime
-         << setw(14)
-         << singleSjfMetrics.turnaroundTime
-         << setw(12)
-         << singleSjfMetrics.responseTime
-         << "\n";
-
-
-    string fcfsLabel =
-        "FCFS - " +
+    string suffix =
+        " (" +
         to_string(coreCount) +
-        " Cores";
+        " cores)";
+
 
     printMultiCoreComparisonRow(
-        fcfsLabel,
-        multiFcfs
+        "FCFS" + suffix,
+        fcfsResult
     );
 
-
-    string sjfLabel =
-        "SJF - " +
-        to_string(coreCount) +
-        " Cores";
+    printMultiCoreComparisonRow(
+        "SJF" + suffix,
+        sjfResult
+    );
 
     printMultiCoreComparisonRow(
-        sjfLabel,
-        multiSjf
+        "Priority" + suffix,
+        priorityResult
     );
 }
 
@@ -364,17 +397,24 @@ int readInteger(
 {
     int value;
 
+
     while (true) {
+
         cout << prompt;
+
 
         if (cin >> value &&
             value >= minimum) {
+
             return value;
         }
 
-        cout << "Invalid input. Enter an integer >= "
+
+        cout <<
+            "Invalid input. Enter an integer >= "
              << minimum
              << ".\n";
+
 
         cin.clear();
 
@@ -394,16 +434,23 @@ vector<Process> readProcesses()
             1
         );
 
+
     vector<Process> processes;
 
-    cout << "\nPriority rule: "
-         << "smaller number = higher priority.\n";
 
-    for (int i = 1; i <= count; i++) {
+    cout <<
+        "\nPriority rule: "
+        "smaller number = higher priority.\n";
+
+
+    for (int i = 1;
+         i <= count;
+         i++) {
 
         cout << "\nProcess P"
              << i
              << "\n";
+
 
         int arrivalTime =
             readInteger(
@@ -411,17 +458,20 @@ vector<Process> readProcesses()
                 0
             );
 
+
         int burstTime =
             readInteger(
                 "Burst time: ",
                 1
             );
 
+
         int priority =
             readInteger(
                 "Priority: ",
                 1
             );
+
 
         processes.push_back({
             i,
@@ -430,6 +480,7 @@ vector<Process> readProcesses()
             priority
         });
     }
+
 
     return processes;
 }
@@ -452,11 +503,13 @@ void runSchedulers(
             &fcfsGantt
         );
 
+
     vector<Process> sjfResult =
         Scheduler::sjf(
             processes,
             &sjfGantt
         );
+
 
     vector<Process> srtfResult =
         Scheduler::srtf(
@@ -464,12 +517,14 @@ void runSchedulers(
             &srtfGantt
         );
 
+
     vector<Process> rrResult =
         Scheduler::roundRobin(
             processes,
             quantum,
             &rrGantt
         );
+
 
     vector<Process> priorityResult =
         Scheduler::priorityScheduling(
@@ -516,6 +571,7 @@ void runSchedulers(
         to_string(quantum) +
         ")";
 
+
     printResult(
         rrTitle,
         rrResult
@@ -552,26 +608,46 @@ void runMultiCoreSchedulers(
     const vector<Process>& processes,
     int coreCount)
 {
+    const int agingInterval = 3;
+
+
     vector<CoreGanttEntry> fcfsGantt;
     vector<CoreGanttEntry> sjfGantt;
+    vector<CoreGanttEntry> priorityGantt;
+    vector<CoreGanttEntry> agingGantt;
 
 
-    vector<MultiCoreProcessResult>
-        fcfsResult =
-            MultiCoreScheduler::fcfs(
-                processes,
-                coreCount,
-                &fcfsGantt
-            );
+    vector<MultiCoreProcessResult> fcfsResult =
+        MultiCoreScheduler::fcfs(
+            processes,
+            coreCount,
+            &fcfsGantt
+        );
 
 
-    vector<MultiCoreProcessResult>
-        sjfResult =
-            MultiCoreScheduler::sjf(
-                processes,
-                coreCount,
-                &sjfGantt
-            );
+    vector<MultiCoreProcessResult> sjfResult =
+        MultiCoreScheduler::sjf(
+            processes,
+            coreCount,
+            &sjfGantt
+        );
+
+
+    vector<MultiCoreProcessResult> priorityResult =
+        MultiCoreScheduler::priorityScheduling(
+            processes,
+            coreCount,
+            &priorityGantt
+        );
+
+
+    vector<MultiCoreProcessResult> agingResult =
+        MultiCoreScheduler::priorityWithAging(
+            processes,
+            coreCount,
+            agingInterval,
+            &agingGantt
+        );
 
 
     printMultiCoreResult(
@@ -580,6 +656,7 @@ void runMultiCoreSchedulers(
             " Cores)",
         fcfsResult
     );
+
 
     printMultiCoreGantt(
         "Multi-Core FCFS",
@@ -595,6 +672,7 @@ void runMultiCoreSchedulers(
         sjfResult
     );
 
+
     printMultiCoreGantt(
         "Multi-Core SJF",
         sjfGantt,
@@ -602,22 +680,41 @@ void runMultiCoreSchedulers(
     );
 
 
-    vector<Process> singleFcfs =
-        Scheduler::fcfs(
-            processes
-        );
-
-    vector<Process> singleSjf =
-        Scheduler::sjf(
-            processes
-        );
+    printMultiCoreResult(
+        "Multi-Core Priority Result (" +
+            to_string(coreCount) +
+            " Cores)",
+        priorityResult
+    );
 
 
-    printSingleVsMultiCoreComparison(
-        singleFcfs,
-        singleSjf,
+    printMultiCoreGantt(
+        "Multi-Core Priority",
+        priorityGantt,
+        coreCount
+    );
+
+
+    printMultiCoreResult(
+        "Multi-Core Priority with Aging "
+        "(Interval = " +
+            to_string(agingInterval) +
+            ")",
+        agingResult
+    );
+
+
+    printMultiCoreGantt(
+        "Multi-Core Priority with Aging",
+        agingGantt,
+        coreCount
+    );
+
+
+    printMultiCoreComparison(
         fcfsResult,
         sjfResult,
+        priorityResult,
         coreCount
     );
 }
@@ -634,10 +731,13 @@ void runAgingDemo()
         {6, 4, 4, 3}
     };
 
+
     const int agingInterval = 3;
+
 
     cout << "\n\nAging Demonstration Dataset\n";
     cout << "=================================\n";
+
 
     printInput(
         agingTest
@@ -654,6 +754,7 @@ void runAgingDemo()
             &withoutAgingGantt
         );
 
+
     vector<Process> withAging =
         Scheduler::priorityWithAging(
             agingTest,
@@ -667,6 +768,7 @@ void runAgingDemo()
         withoutAging
     );
 
+
     printGantt(
         "Priority without Aging",
         withoutAgingGantt
@@ -677,6 +779,7 @@ void runAgingDemo()
         "Priority Scheduling WITH Aging (Interval = 3)",
         withAging
     );
+
 
     printGantt(
         "Priority with Aging",
@@ -695,12 +798,14 @@ void runDefaultDemo()
         {5, 4, 2, 3}
     };
 
+
     const int quantum = 2;
     const int coreCount = 2;
 
 
     cout << "\nDefault Demonstration\n";
     cout << "=====================\n";
+
 
     printInput(
         processes
@@ -710,6 +815,7 @@ void runDefaultDemo()
     cout <<
         "\n\n=== Single-Core Scheduling ===\n";
 
+
     runSchedulers(
         processes,
         quantum
@@ -718,6 +824,7 @@ void runDefaultDemo()
 
     cout <<
         "\n\n=== Multi-Core Scheduling ===\n";
+
 
     runMultiCoreSchedulers(
         processes,
@@ -756,6 +863,7 @@ void runCustomSimulation()
     cout << "\nCustom Dataset\n";
     cout << "--------------\n";
 
+
     printInput(
         processes
     );
@@ -763,6 +871,7 @@ void runCustomSimulation()
 
     cout <<
         "\n\n=== Single-Core Scheduling ===\n";
+
 
     runSchedulers(
         processes,
@@ -772,6 +881,7 @@ void runCustomSimulation()
 
     cout <<
         "\n\n=== Multi-Core Scheduling ===\n";
+
 
     runMultiCoreSchedulers(
         processes,
