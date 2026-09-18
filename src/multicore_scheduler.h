@@ -22,15 +22,32 @@ struct MultiCoreProcessResult {
 
 class MultiCoreScheduler {
 public:
+
     static std::vector<MultiCoreProcessResult> fcfs(
         std::vector<Process> processes,
         int coreCount,
         std::vector<CoreGanttEntry>* gantt = nullptr
     );
 
+
     static std::vector<MultiCoreProcessResult> sjf(
         std::vector<Process> processes,
         int coreCount,
+        std::vector<CoreGanttEntry>* gantt = nullptr
+    );
+
+
+    static std::vector<MultiCoreProcessResult> priorityScheduling(
+        std::vector<Process> processes,
+        int coreCount,
+        std::vector<CoreGanttEntry>* gantt = nullptr
+    );
+
+
+    static std::vector<MultiCoreProcessResult> priorityWithAging(
+        std::vector<Process> processes,
+        int coreCount,
+        int agingInterval,
         std::vector<CoreGanttEntry>* gantt = nullptr
     );
 };

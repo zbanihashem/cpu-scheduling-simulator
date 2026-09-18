@@ -27,6 +27,75 @@ void addCoreGanttEntry(
     });
 }
 
+
+int findNextEventTime(
+    const std::vector<Process>& processes,
+    const std::vector<bool>& scheduled,
+    const std::vector<int>& coreAvailableTime,
+    int currentTime)
+{
+    int nextTime =
+        std::numeric_limits<int>::max();
+
+
+    for (int availableTime : coreAvailableTime) {
+
+        if (availableTime > currentTime) {
+
+            nextTime =
+                std::min(
+                    nextTime,
+                    availableTime
+                );
+        }
+    }
+
+
+    for (std::size_t i = 0;
+         i < processes.size();
+         i++) {
+
+        if (!scheduled[i] &&
+            processes[i].arrivalTime >
+                currentTime) {
+
+            nextTime =
+                std::min(
+                    nextTime,
+                    processes[i].arrivalTime
+                );
+        }
+    }
+
+
+    return nextTime;
+}
+
+
+void calculateMetrics(
+    Process& process,
+    int startTime)
+{
+    process.startTime =
+        startTime;
+
+    process.completionTime =
+        process.startTime +
+        process.burstTime;
+
+    process.turnaroundTime =
+        process.completionTime -
+        process.arrivalTime;
+
+    process.waitingTime =
+        process.turnaroundTime -
+        process.burstTime;
+
+    process.responseTime =
+        process.startTime -
+        process.arrivalTime;
+}
+
 }
 
 
@@ -42,11 +111,13 @@ MultiCoreScheduler::fcfs(
         );
     }
 
+
     std::stable_sort(
         processes.begin(),
         processes.end(),
         [](const Process& a, const Process& b) {
-            return a.arrivalTime < b.arrivalTime;
+            return a.arrivalTime <
+                   b.arrivalTime;
         }
     );
 
@@ -59,9 +130,10 @@ MultiCoreScheduler::fcfs(
     std::vector<MultiCoreProcessResult> result;
 
 
-    for (Process& p : processes) {
+    for (Process& process : processes) {
 
         int selectedCore = 0;
+
 
         for (int core = 1;
              core < coreCount;
@@ -77,58 +149,45 @@ MultiCoreScheduler::fcfs(
 
         int startTime =
             std::max(
-                p.arrivalTime,
+                process.arrivalTime,
                 coreAvailableTime[selectedCore]
             );
 
 
         if (coreAvailableTime[selectedCore] <
-            p.arrivalTime) {
+            process.arrivalTime) {
 
             addCoreGanttEntry(
                 gantt,
                 selectedCore + 1,
                 -1,
                 coreAvailableTime[selectedCore],
-                p.arrivalTime
+                process.arrivalTime
             );
         }
 
 
-        p.startTime = startTime;
-
-        p.completionTime =
-            p.startTime +
-            p.burstTime;
-
-        p.turnaroundTime =
-            p.completionTime -
-            p.arrivalTime;
-
-        p.waitingTime =
-            p.turnaroundTime -
-            p.burstTime;
-
-        p.responseTime =
-            p.startTime -
-            p.arrivalTime;
+        calculateMetrics(
+            process,
+            startTime
+        );
 
 
         addCoreGanttEntry(
             gantt,
             selectedCore + 1,
-            p.pid,
-            p.startTime,
-            p.completionTime
+            process.pid,
+            process.startTime,
+            process.completionTime
         );
 
 
         coreAvailableTime[selectedCore] =
-            p.completionTime;
+            process.completionTime;
 
 
         result.push_back({
-            p,
+            process,
             selectedCore + 1
         });
     }
@@ -175,9 +234,6 @@ MultiCoreScheduler::sjf(
 
     while (scheduledCount < processCount) {
 
-        bool scheduledSomething = false;
-
-
         for (int core = 0;
              core < coreCount;
              core++) {
@@ -198,12 +254,9 @@ MultiCoreScheduler::sjf(
                  i < processCount;
                  i++) {
 
-                if (scheduled[i]) {
-                    continue;
-                }
-
-                if (processes[i].arrivalTime >
-                    currentTime) {
+                if (scheduled[i] ||
+                    processes[i].arrivalTime >
+                        currentTime) {
 
                     continue;
                 }
@@ -225,7 +278,7 @@ MultiCoreScheduler::sjf(
             }
 
 
-            Process& p =
+            Process& process =
                 processes[selected];
 
 
@@ -242,46 +295,32 @@ MultiCoreScheduler::sjf(
             }
 
 
-            p.startTime = currentTime;
-
-            p.completionTime =
-                p.startTime +
-                p.burstTime;
-
-            p.turnaroundTime =
-                p.completionTime -
-                p.arrivalTime;
-
-            p.waitingTime =
-                p.turnaroundTime -
-                p.burstTime;
-
-            p.responseTime =
-                p.startTime -
-                p.arrivalTime;
+            calculateMetrics(
+                process,
+                currentTime
+            );
 
 
             addCoreGanttEntry(
                 gantt,
                 core + 1,
-                p.pid,
-                p.startTime,
-                p.completionTime
+                process.pid,
+                process.startTime,
+                process.completionTime
             );
 
 
             coreAvailableTime[core] =
-                p.completionTime;
+                process.completionTime;
 
             scheduled[selected] = true;
             scheduledCount++;
 
+
             result.push_back({
-                p,
+                process,
                 core + 1
             });
-
-            scheduledSomething = true;
         }
 
 
@@ -293,8 +332,65 @@ MultiCoreScheduler::sjf(
 
 
         int nextTime =
-            std::numeric_limits<int>::max();
+            findNextEventTime(
+                processes,
+                scheduled,
+                coreAvailableTime,
+                currentTime
+            );
 
+
+        if (nextTime ==
+            std::numeric_limits<int>::max()) {
+
+            break;
+        }
+
+
+        currentTime = nextTime;
+    }
+
+
+    return result;
+}
+
+
+std::vector<MultiCoreProcessResult>
+MultiCoreScheduler::priorityScheduling(
+    std::vector<Process> processes,
+    int coreCount,
+    std::vector<CoreGanttEntry>* gantt)
+{
+    if (coreCount <= 0) {
+        throw std::invalid_argument(
+            "Core count must be greater than zero."
+        );
+    }
+
+
+    const int processCount =
+        static_cast<int>(
+            processes.size()
+        );
+
+
+    std::vector<bool> scheduled(
+        processCount,
+        false
+    );
+
+    std::vector<int> coreAvailableTime(
+        coreCount,
+        0
+    );
+
+    std::vector<MultiCoreProcessResult> result;
+
+    int scheduledCount = 0;
+    int currentTime = 0;
+
+
+    while (scheduledCount < processCount) {
 
         for (int core = 0;
              core < coreCount;
@@ -303,42 +399,298 @@ MultiCoreScheduler::sjf(
             if (coreAvailableTime[core] >
                 currentTime) {
 
-                nextTime =
-                    std::min(
-                        nextTime,
-                        coreAvailableTime[core]
-                    );
+                continue;
             }
+
+
+            int selected = -1;
+            int bestPriority =
+                std::numeric_limits<int>::max();
+
+
+            for (int i = 0;
+                 i < processCount;
+                 i++) {
+
+                if (scheduled[i] ||
+                    processes[i].arrivalTime >
+                        currentTime) {
+
+                    continue;
+                }
+
+
+                if (processes[i].priority <
+                    bestPriority) {
+
+                    bestPriority =
+                        processes[i].priority;
+
+                    selected = i;
+                }
+            }
+
+
+            if (selected == -1) {
+                continue;
+            }
+
+
+            Process& process =
+                processes[selected];
+
+
+            if (coreAvailableTime[core] <
+                currentTime) {
+
+                addCoreGanttEntry(
+                    gantt,
+                    core + 1,
+                    -1,
+                    coreAvailableTime[core],
+                    currentTime
+                );
+            }
+
+
+            calculateMetrics(
+                process,
+                currentTime
+            );
+
+
+            addCoreGanttEntry(
+                gantt,
+                core + 1,
+                process.pid,
+                process.startTime,
+                process.completionTime
+            );
+
+
+            coreAvailableTime[core] =
+                process.completionTime;
+
+            scheduled[selected] = true;
+            scheduledCount++;
+
+
+            result.push_back({
+                process,
+                core + 1
+            });
         }
 
 
-        for (int i = 0;
-             i < processCount;
-             i++) {
+        if (scheduledCount ==
+            processCount) {
 
-            if (!scheduled[i] &&
-                processes[i].arrivalTime >
-                    currentTime) {
-
-                nextTime =
-                    std::min(
-                        nextTime,
-                        processes[i].arrivalTime
-                    );
-            }
+            break;
         }
+
+
+        int nextTime =
+            findNextEventTime(
+                processes,
+                scheduled,
+                coreAvailableTime,
+                currentTime
+            );
 
 
         if (nextTime ==
             std::numeric_limits<int>::max()) {
 
-            if (!scheduledSomething) {
-                break;
-            }
-        } else {
-
-            currentTime = nextTime;
+            break;
         }
+
+
+        currentTime = nextTime;
+    }
+
+
+    return result;
+}
+
+
+std::vector<MultiCoreProcessResult>
+MultiCoreScheduler::priorityWithAging(
+    std::vector<Process> processes,
+    int coreCount,
+    int agingInterval,
+    std::vector<CoreGanttEntry>* gantt)
+{
+    if (coreCount <= 0) {
+        throw std::invalid_argument(
+            "Core count must be greater than zero."
+        );
+    }
+
+
+    if (agingInterval <= 0) {
+        throw std::invalid_argument(
+            "Aging interval must be greater than zero."
+        );
+    }
+
+
+    const int processCount =
+        static_cast<int>(
+            processes.size()
+        );
+
+
+    std::vector<bool> scheduled(
+        processCount,
+        false
+    );
+
+    std::vector<int> coreAvailableTime(
+        coreCount,
+        0
+    );
+
+    std::vector<MultiCoreProcessResult> result;
+
+    int scheduledCount = 0;
+    int currentTime = 0;
+
+
+    while (scheduledCount < processCount) {
+
+        for (int core = 0;
+             core < coreCount;
+             core++) {
+
+            if (coreAvailableTime[core] >
+                currentTime) {
+
+                continue;
+            }
+
+
+            int selected = -1;
+
+            int bestEffectivePriority =
+                std::numeric_limits<int>::max();
+
+
+            for (int i = 0;
+                 i < processCount;
+                 i++) {
+
+                if (scheduled[i] ||
+                    processes[i].arrivalTime >
+                        currentTime) {
+
+                    continue;
+                }
+
+
+                int waitingSoFar =
+                    currentTime -
+                    processes[i].arrivalTime;
+
+
+                int priorityImprovement =
+                    waitingSoFar /
+                    agingInterval;
+
+
+                int effectivePriority =
+                    std::max(
+                        1,
+                        processes[i].priority -
+                        priorityImprovement
+                    );
+
+
+                if (effectivePriority <
+                    bestEffectivePriority) {
+
+                    bestEffectivePriority =
+                        effectivePriority;
+
+                    selected = i;
+                }
+            }
+
+
+            if (selected == -1) {
+                continue;
+            }
+
+
+            Process& process =
+                processes[selected];
+
+
+            if (coreAvailableTime[core] <
+                currentTime) {
+
+                addCoreGanttEntry(
+                    gantt,
+                    core + 1,
+                    -1,
+                    coreAvailableTime[core],
+                    currentTime
+                );
+            }
+
+
+            calculateMetrics(
+                process,
+                currentTime
+            );
+
+
+            addCoreGanttEntry(
+                gantt,
+                core + 1,
+                process.pid,
+                process.startTime,
+                process.completionTime
+            );
+
+
+            coreAvailableTime[core] =
+                process.completionTime;
+
+            scheduled[selected] = true;
+            scheduledCount++;
+
+
+            result.push_back({
+                process,
+                core + 1
+            });
+        }
+
+
+        if (scheduledCount ==
+            processCount) {
+
+            break;
+        }
+
+
+        int nextTime =
+            findNextEventTime(
+                processes,
+                scheduled,
+                coreAvailableTime,
+                currentTime
+            );
+
+
+        if (nextTime ==
+            std::numeric_limits<int>::max()) {
+
+            break;
+        }
+
+
+        currentTime = nextTime;
     }
 
 
