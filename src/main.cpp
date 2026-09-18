@@ -113,10 +113,11 @@ void printMultiCoreResult(
 
 
 void printMultiCoreGantt(
+    const string& title,
     const vector<CoreGanttEntry>& gantt,
     int coreCount)
 {
-    cout << "\nMulti-Core Gantt Chart\n";
+    cout << "\n" << title << " Gantt Chart\n";
     cout << "======================\n";
 
     for (int core = 1;
@@ -242,50 +243,46 @@ void printComparison(
     cout <<
         "------------------------------------------------------------\n";
 
-    printComparisonRow(
-        "FCFS",
-        fcfsResult
-    );
+    printComparisonRow("FCFS", fcfsResult);
+    printComparisonRow("SJF", sjfResult);
+    printComparisonRow("SRTF", srtfResult);
+    printComparisonRow("Round Robin", rrResult);
+    printComparisonRow("Priority", priorityResult);
+}
 
-    printComparisonRow(
-        "SJF",
-        sjfResult
-    );
 
-    printComparisonRow(
-        "SRTF",
-        srtfResult
-    );
+void printMultiCoreComparisonRow(
+    const string& configuration,
+    const vector<MultiCoreProcessResult>& result)
+{
+    AverageMetrics metrics =
+        calculateMultiCoreAverageMetrics(
+            result
+        );
 
-    printComparisonRow(
-        "Round Robin",
-        rrResult
-    );
-
-    printComparisonRow(
-        "Priority",
-        priorityResult
-    );
+    cout << left
+         << setw(22) << configuration
+         << right
+         << setw(12)
+         << fixed
+         << setprecision(2)
+         << metrics.waitingTime
+         << setw(14)
+         << metrics.turnaroundTime
+         << setw(12)
+         << metrics.responseTime
+         << "\n";
 }
 
 
 void printSingleVsMultiCoreComparison(
-    const vector<Process>& singleCoreResult,
-    const vector<MultiCoreProcessResult>& multiCoreResult,
+    const vector<Process>& singleFcfs,
+    const vector<Process>& singleSjf,
+    const vector<MultiCoreProcessResult>& multiFcfs,
+    const vector<MultiCoreProcessResult>& multiSjf,
     int coreCount)
 {
-    AverageMetrics singleMetrics =
-        calculateAverageMetrics(
-            singleCoreResult
-        );
-
-    AverageMetrics multiMetrics =
-        calculateMultiCoreAverageMetrics(
-            multiCoreResult
-        );
-
-
-    cout << "\nFCFS Single-Core vs Multi-Core\n";
+    cout << "\nSingle-Core vs Multi-Core Comparison\n";
 
     cout <<
         "============================================================\n";
@@ -302,34 +299,62 @@ void printSingleVsMultiCoreComparison(
         "------------------------------------------------------------\n";
 
 
+    AverageMetrics singleFcfsMetrics =
+        calculateAverageMetrics(
+            singleFcfs
+        );
+
     cout << left
-         << setw(22) << "Single Core"
+         << setw(22) << "FCFS - 1 Core"
          << right
          << setw(12)
          << fixed
          << setprecision(2)
-         << singleMetrics.waitingTime
+         << singleFcfsMetrics.waitingTime
          << setw(14)
-         << singleMetrics.turnaroundTime
+         << singleFcfsMetrics.turnaroundTime
          << setw(12)
-         << singleMetrics.responseTime
+         << singleFcfsMetrics.responseTime
          << "\n";
 
 
-    string multiLabel =
+    AverageMetrics singleSjfMetrics =
+        calculateAverageMetrics(
+            singleSjf
+        );
+
+    cout << left
+         << setw(22) << "SJF - 1 Core"
+         << right
+         << setw(12)
+         << singleSjfMetrics.waitingTime
+         << setw(14)
+         << singleSjfMetrics.turnaroundTime
+         << setw(12)
+         << singleSjfMetrics.responseTime
+         << "\n";
+
+
+    string fcfsLabel =
+        "FCFS - " +
         to_string(coreCount) +
         " Cores";
 
-    cout << left
-         << setw(22) << multiLabel
-         << right
-         << setw(12)
-         << multiMetrics.waitingTime
-         << setw(14)
-         << multiMetrics.turnaroundTime
-         << setw(12)
-         << multiMetrics.responseTime
-         << "\n";
+    printMultiCoreComparisonRow(
+        fcfsLabel,
+        multiFcfs
+    );
+
+
+    string sjfLabel =
+        "SJF - " +
+        to_string(coreCount) +
+        " Cores";
+
+    printMultiCoreComparisonRow(
+        sjfLabel,
+        multiSjf
+    );
 }
 
 
@@ -375,7 +400,10 @@ vector<Process> readProcesses()
          << "smaller number = higher priority.\n";
 
     for (int i = 1; i <= count; i++) {
-        cout << "\nProcess P" << i << "\n";
+
+        cout << "\nProcess P"
+             << i
+             << "\n";
 
         int arrivalTime =
             readInteger(
@@ -520,48 +548,76 @@ void runSchedulers(
 }
 
 
-void runMultiCoreFcfs(
+void runMultiCoreSchedulers(
     const vector<Process>& processes,
     int coreCount)
 {
-    vector<CoreGanttEntry> multiCoreGantt;
+    vector<CoreGanttEntry> fcfsGantt;
+    vector<CoreGanttEntry> sjfGantt;
+
 
     vector<MultiCoreProcessResult>
-        multiCoreResult =
+        fcfsResult =
             MultiCoreScheduler::fcfs(
                 processes,
                 coreCount,
-                &multiCoreGantt
+                &fcfsGantt
             );
 
 
-    vector<Process> singleCoreResult =
-        Scheduler::fcfs(
-            processes
-        );
-
-
-    string title =
-        "Multi-Core FCFS Result (" +
-        to_string(coreCount) +
-        " Cores)";
+    vector<MultiCoreProcessResult>
+        sjfResult =
+            MultiCoreScheduler::sjf(
+                processes,
+                coreCount,
+                &sjfGantt
+            );
 
 
     printMultiCoreResult(
-        title,
-        multiCoreResult
+        "Multi-Core FCFS Result (" +
+            to_string(coreCount) +
+            " Cores)",
+        fcfsResult
     );
 
-
     printMultiCoreGantt(
-        multiCoreGantt,
+        "Multi-Core FCFS",
+        fcfsGantt,
         coreCount
     );
 
 
+    printMultiCoreResult(
+        "Multi-Core SJF Result (" +
+            to_string(coreCount) +
+            " Cores)",
+        sjfResult
+    );
+
+    printMultiCoreGantt(
+        "Multi-Core SJF",
+        sjfGantt,
+        coreCount
+    );
+
+
+    vector<Process> singleFcfs =
+        Scheduler::fcfs(
+            processes
+        );
+
+    vector<Process> singleSjf =
+        Scheduler::sjf(
+            processes
+        );
+
+
     printSingleVsMultiCoreComparison(
-        singleCoreResult,
-        multiCoreResult,
+        singleFcfs,
+        singleSjf,
+        fcfsResult,
+        sjfResult,
         coreCount
     );
 }
@@ -583,7 +639,9 @@ void runAgingDemo()
     cout << "\n\nAging Demonstration Dataset\n";
     cout << "=================================\n";
 
-    printInput(agingTest);
+    printInput(
+        agingTest
+    );
 
 
     vector<GanttEntry> withoutAgingGantt;
@@ -640,13 +698,17 @@ void runDefaultDemo()
     const int quantum = 2;
     const int coreCount = 2;
 
+
     cout << "\nDefault Demonstration\n";
     cout << "=====================\n";
 
-    printInput(processes);
+    printInput(
+        processes
+    );
 
 
-    cout << "\n\n=== Single-Core Scheduling ===\n";
+    cout <<
+        "\n\n=== Single-Core Scheduling ===\n";
 
     runSchedulers(
         processes,
@@ -654,9 +716,10 @@ void runDefaultDemo()
     );
 
 
-    cout << "\n\n=== Multi-Core Scheduling ===\n";
+    cout <<
+        "\n\n=== Multi-Core Scheduling ===\n";
 
-    runMultiCoreFcfs(
+    runMultiCoreSchedulers(
         processes,
         coreCount
     );
@@ -670,6 +733,7 @@ void runCustomSimulation()
 {
     cout << "\nCustom Simulation\n";
     cout << "=================\n\n";
+
 
     vector<Process> processes =
         readProcesses();
@@ -692,10 +756,13 @@ void runCustomSimulation()
     cout << "\nCustom Dataset\n";
     cout << "--------------\n";
 
-    printInput(processes);
+    printInput(
+        processes
+    );
 
 
-    cout << "\n\n=== Single-Core Scheduling ===\n";
+    cout <<
+        "\n\n=== Single-Core Scheduling ===\n";
 
     runSchedulers(
         processes,
@@ -703,9 +770,10 @@ void runCustomSimulation()
     );
 
 
-    cout << "\n\n=== Multi-Core Scheduling ===\n";
+    cout <<
+        "\n\n=== Multi-Core Scheduling ===\n";
 
-    runMultiCoreFcfs(
+    runMultiCoreSchedulers(
         processes,
         coreCount
     );
@@ -726,7 +794,9 @@ void printMenu()
 int main()
 {
     while (true) {
+
         printMenu();
+
 
         int choice =
             readInteger(
@@ -734,22 +804,32 @@ int main()
                 0
             );
 
+
         switch (choice) {
+
             case 1:
+
                 runDefaultDemo();
                 break;
 
+
             case 2:
+
                 runCustomSimulation();
                 break;
 
+
             case 0:
+
                 cout << "\nGoodbye.\n";
                 return 0;
 
+
             default:
-                cout << "Invalid choice. "
-                     << "Please select 0, 1, or 2.\n";
+
+                cout <<
+                    "Invalid choice. "
+                    "Please select 0, 1, or 2.\n";
         }
     }
 }
