@@ -50,6 +50,13 @@ public:
         int agingInterval,
         std::vector<CoreGanttEntry>* gantt = nullptr
     );
+
+
+    static std::vector<MultiCoreProcessResult> srtf(
+        std::vector<Process> processes,
+        int coreCount,
+        std::vector<CoreGanttEntry>* gantt = nullptr
+    );
 };
 
 
