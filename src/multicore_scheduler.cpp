@@ -1056,3 +1056,506 @@ MultiCoreScheduler::srtf(
 
     return result;
 }
+
+std::vector<MultiCoreProcessResult>
+MultiCoreScheduler::roundRobin(
+    std::vector<Process> processes,
+    int coreCount,
+    int quantum,
+    std::vector<CoreGanttEntry>* gantt)
+{
+    if (coreCount <= 0) {
+        throw std::invalid_argument(
+            "Core count must be greater than zero."
+        );
+    }
+
+
+    if (quantum <= 0) {
+        throw std::invalid_argument(
+            "Quantum must be greater than zero."
+        );
+    }
+
+
+    const int processCount =
+        static_cast<int>(
+            processes.size()
+        );
+
+
+    if (processCount == 0) {
+        return {};
+    }
+
+
+    /*
+     * Round Robin is preemptive.
+     *
+     * A process may execute on different cores during
+     * different time slices.
+     *
+     * coreId in the final result represents the core
+     * on which the process completed.
+     */
+
+
+    for (Process& process : processes) {
+
+        process.remainingTime =
+            process.burstTime;
+
+        process.startTime = -1;
+        process.completionTime = 0;
+        process.waitingTime = 0;
+        process.turnaroundTime = 0;
+        process.responseTime = 0;
+    }
+
+
+    /*
+     * Sort process indices by arrival time.
+     *
+     * We keep the original processes vector unchanged
+     * so the final result can still be returned in
+     * original input order.
+     */
+    vector<int> arrivalOrder(
+        processCount
+    );
+
+
+    for (int i = 0;
+         i < processCount;
+         i++) {
+
+        arrivalOrder[i] = i;
+    }
+
+
+    stable_sort(
+        arrivalOrder.begin(),
+        arrivalOrder.end(),
+        [&processes](int a, int b) {
+
+            if (processes[a].arrivalTime !=
+                processes[b].arrivalTime) {
+
+                return
+                    processes[a].arrivalTime <
+                    processes[b].arrivalTime;
+            }
+
+
+            return a < b;
+        }
+    );
+
+
+    /*
+     * Shared Ready Queue.
+     */
+    vector<int> readyQueue;
+
+
+    /*
+     * Each core stores the process currently running.
+     * -1 means the core is idle.
+     */
+    vector<int> coreProcess(
+        coreCount,
+        -1
+    );
+
+
+    /*
+     * Time at which the current slice on each core ends.
+     */
+    vector<int> coreSliceEnd(
+        coreCount,
+        0
+    );
+
+
+    /*
+     * Start time of the current slice.
+     */
+    vector<int> coreSliceStart(
+        coreCount,
+        0
+    );
+
+
+    /*
+     * Amount of CPU time assigned to the current slice.
+     */
+    vector<int> coreSliceLength(
+        coreCount,
+        0
+    );
+
+
+    /*
+     * Core on which each process finally completes.
+     */
+    vector<int> completionCore(
+        processCount,
+        -1
+    );
+
+
+    int nextArrival = 0;
+    int completedCount = 0;
+    int currentTime = 0;
+
+
+    /*
+     * Helper lambda:
+     * add every process that has arrived by time.
+     */
+    auto addArrivals =
+        [&](int time) {
+
+            while (
+                nextArrival < processCount &&
+                processes[
+                    arrivalOrder[nextArrival]
+                ].arrivalTime <= time) {
+
+                readyQueue.push_back(
+                    arrivalOrder[nextArrival]
+                );
+
+                nextArrival++;
+            }
+        };
+
+
+    /*
+     * Start from the first arrival rather than
+     * simulating unnecessary empty time.
+     */
+    if (nextArrival < processCount) {
+
+        currentTime =
+            processes[
+                arrivalOrder[nextArrival]
+            ].arrivalTime;
+    }
+
+
+    /*
+     * Record initial idle time if the first process
+     * arrives after time zero.
+     */
+    if (currentTime > 0) {
+
+        for (int core = 0;
+             core < coreCount;
+             core++) {
+
+            addCoreGanttEntry(
+                gantt,
+                core + 1,
+                -1,
+                0,
+                currentTime
+            );
+        }
+    }
+
+
+    addArrivals(
+        currentTime
+    );
+
+
+    while (completedCount < processCount) {
+
+        /*
+         * Assign ready processes to every free core.
+         */
+        for (int core = 0;
+             core < coreCount;
+             core++) {
+
+            if (coreProcess[core] != -1) {
+                continue;
+            }
+
+
+            if (readyQueue.empty()) {
+                continue;
+            }
+
+
+            int processIndex =
+                readyQueue.front();
+
+
+            readyQueue.erase(
+                readyQueue.begin()
+            );
+
+
+            Process& process =
+                processes[processIndex];
+
+
+            int sliceLength =
+                std::min(
+                    quantum,
+                    process.remainingTime
+                );
+
+
+            coreProcess[core] =
+                processIndex;
+
+
+            coreSliceStart[core] =
+                currentTime;
+
+
+            coreSliceLength[core] =
+                sliceLength;
+
+
+            coreSliceEnd[core] =
+                currentTime +
+                sliceLength;
+
+
+            if (process.startTime == -1) {
+
+                process.startTime =
+                    currentTime;
+            }
+        }
+
+
+        /*
+         * Find the next event.
+         *
+         * An event can be:
+         * 1. a process arrival
+         * 2. a quantum ending
+         * 3. a process completing
+         */
+        int nextEventTime =
+            std::numeric_limits<int>::max();
+
+
+        if (nextArrival < processCount) {
+
+            nextEventTime =
+                processes[
+                    arrivalOrder[nextArrival]
+                ].arrivalTime;
+        }
+
+
+        for (int core = 0;
+             core < coreCount;
+             core++) {
+
+            if (coreProcess[core] != -1) {
+
+                nextEventTime =
+                    std::min(
+                        nextEventTime,
+                        coreSliceEnd[core]
+                    );
+            }
+        }
+
+
+        if (nextEventTime ==
+            std::numeric_limits<int>::max()) {
+
+            break;
+        }
+
+
+        /*
+         * If all cores are idle and the next event is
+         * a future arrival, record the idle interval.
+         */
+        bool anyCoreBusy = false;
+
+
+        for (int core = 0;
+             core < coreCount;
+             core++) {
+
+            if (coreProcess[core] != -1) {
+
+                anyCoreBusy = true;
+                break;
+            }
+        }
+
+
+        if (!anyCoreBusy &&
+            nextEventTime > currentTime) {
+
+            for (int core = 0;
+                 core < coreCount;
+                 core++) {
+
+                addCoreGanttEntry(
+                    gantt,
+                    core + 1,
+                    -1,
+                    currentTime,
+                    nextEventTime
+                );
+            }
+        }
+
+
+        currentTime =
+            nextEventTime;
+
+
+        /*
+         * First handle all slices that end exactly
+         * at this timestamp.
+         *
+         * Their executed CPU time is deducted here.
+         */
+        vector<int> expiredProcesses;
+
+
+        for (int core = 0;
+             core < coreCount;
+             core++) {
+
+            if (coreProcess[core] == -1) {
+                continue;
+            }
+
+
+            if (coreSliceEnd[core] !=
+                currentTime) {
+
+                continue;
+            }
+
+
+            int processIndex =
+                coreProcess[core];
+
+
+            Process& process =
+                processes[processIndex];
+
+
+            addCoreGanttEntry(
+                gantt,
+                core + 1,
+                process.pid,
+                coreSliceStart[core],
+                coreSliceEnd[core]
+            );
+
+
+            process.remainingTime -=
+                coreSliceLength[core];
+
+
+            /*
+             * The core becomes free at this timestamp.
+             */
+            coreProcess[core] = -1;
+
+
+            if (process.remainingTime == 0) {
+
+                process.completionTime =
+                    currentTime;
+
+
+                process.turnaroundTime =
+                    process.completionTime -
+                    process.arrivalTime;
+
+
+                process.waitingTime =
+                    process.turnaroundTime -
+                    process.burstTime;
+
+
+                process.responseTime =
+                    process.startTime -
+                    process.arrivalTime;
+
+
+                completionCore[processIndex] =
+                    core + 1;
+
+
+                completedCount++;
+            }
+            else {
+
+                /*
+                 * Do not immediately requeue it.
+                 *
+                 * We first insert processes that have
+                 * arrived by this timestamp.
+                 */
+                expiredProcesses.push_back(
+                    processIndex
+                );
+            }
+        }
+
+
+        /*
+         * New arrivals at this timestamp enter the
+         * Ready Queue before expired processes are
+         * placed back at the end.
+         *
+         * This prevents a process whose quantum just
+         * expired from jumping ahead of a process that
+         * was already waiting to enter the queue.
+         */
+        addArrivals(
+            currentTime
+        );
+
+
+        /*
+         * Requeue unfinished processes whose quantum
+         * ended at this timestamp.
+         */
+        for (int processIndex :
+             expiredProcesses) {
+
+            readyQueue.push_back(
+                processIndex
+            );
+        }
+    }
+
+
+    /*
+     * Build final result in original input order.
+     */
+    vector<MultiCoreProcessResult> result;
+
+
+    for (int i = 0;
+         i < processCount;
+         i++) {
+
+        result.push_back({
+            processes[i],
+            completionCore[i]
+        });
+    }
+
+
+    return result;
+}

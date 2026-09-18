@@ -57,6 +57,14 @@ public:
         int coreCount,
         std::vector<CoreGanttEntry>* gantt = nullptr
     );
+
+
+    static std::vector<MultiCoreProcessResult> roundRobin(
+        std::vector<Process> processes,
+        int coreCount,
+        int quantum,
+        std::vector<CoreGanttEntry>* gantt = nullptr
+    );
 };
 
 
