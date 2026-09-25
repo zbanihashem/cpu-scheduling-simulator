@@ -14,6 +14,7 @@ The simulator supports:
 - Round Robin (RR) with user-defined time quantum
 - Priority Scheduling - Non-preemptive
 - Priority Scheduling with Aging
+- Multilevel Feedback Queue (MLFQ) bonus scheduler
 - Single-core scheduling
 - Multi-core scheduling with a configurable number of CPU cores
 - Waiting Time calculation
@@ -91,6 +92,24 @@ effectivePriority =
 The original priority stored in the process is not modified. The effective priority is calculated dynamically whenever the scheduler selects another process.
 
 The Aging implementation in this project is non-preemptive.
+
+### Multilevel Feedback Queue (MLFQ)
+
+The project also includes a single-core Multilevel Feedback Queue scheduler as a bonus extension.
+
+It uses three priority levels:
+
+```text
+Q0 (highest) : Round Robin, quantum = 2
+Q1           : Round Robin, quantum = 4
+Q2 (lowest)  : FCFS
+```
+
+All newly arriving processes enter Q0. A process that consumes its complete Q0 quantum without finishing is demoted to Q1, and a process that consumes its complete Q1 quantum without finishing is demoted to Q2.
+
+Q0 always has priority over the lower queues. Therefore, a new process arriving in Q0 can preempt a process currently executing from Q1 or Q2. A Q1 process preempted by a new Q0 arrival remains in Q1; a Q2 process remains in Q2.
+
+The MLFQ implementation uses fixed queue quantum values in the current simulator so that its behavior is deterministic and easy to demonstrate.
 
 ## Single-Core and Multi-Core Scheduling
 
@@ -179,7 +198,8 @@ cpu-scheduler/
     ├── test_scheduler.cpp
     ├── test_multicore_scheduler.cpp
     ├── test_multicore_srtf.cpp
-    └── test_multicore_rr.cpp
+    ├── test_multicore_rr.cpp
+    └── test_mlfq.cpp
 ```
 
 ## Requirements
@@ -257,6 +277,9 @@ The default configuration uses:
 Round Robin Quantum = 2
 CPU Cores           = 2
 Aging Interval      = 3
+MLFQ Q0 Quantum     = 2
+MLFQ Q1 Quantum     = 4
+MLFQ Q2             = FCFS
 ```
 
 The demonstration also runs a separate single-core Priority Scheduling workload specifically designed to show the effect of Aging.
@@ -347,6 +370,7 @@ SJF                           5.60         10.40        5.60
 SRTF                          5.20         10.00        4.20
 Round Robin                  10.60         15.40        2.80
 Priority                      6.60         11.40        6.60
+MLFQ                          9.80         14.60        2.00
 ```
 
 For the default two-core workload:
@@ -398,13 +422,14 @@ Run all automated tests with:
 make test
 ```
 
-The test suite contains four executables:
+The test suite contains five executables:
 
 ```text
 scheduler_tests
 multicore_tests
 multicore_srtf_tests
 multicore_rr_tests
+mlfq_tests
 ```
 
 The tests cover:
@@ -424,6 +449,10 @@ The tests cover:
 - Invalid Round Robin quantum
 - Invalid Aging interval
 - Multi-core idle periods
+- MLFQ queue demotion and ordering
+- MLFQ preemption by a higher-priority queue
+- MLFQ scheduling metrics and idle periods
+- Invalid MLFQ quantum values
 
 A successful test run ends with all test groups reporting that their tests passed.
 
@@ -446,6 +475,8 @@ make rebuild
 - The simulator uses integer time units.
 - FCFS, SJF, Priority Scheduling, and Priority Scheduling with Aging are non-preemptive.
 - SRTF and Round Robin are preemptive.
+- MLFQ is implemented as a single-core bonus scheduler with Q0 RR(2), Q1 RR(4), and Q2 FCFS.
+- Higher-priority Q0 arrivals can preempt processes running in Q1 or Q2.
 - Multi-core scheduling uses a simplified global scheduling model.
 - Multi-core SRTF makes scheduling decisions as simulated time advances.
 - Multi-core Round Robin uses a shared ready queue and configurable time quantum.
@@ -460,8 +491,8 @@ The primary development environment is Ubuntu Linux under WSL2 using GNU g++ and
 
 The code is intended to compile on other Linux distributions with a C++17-compatible compiler.
 
-## Possible Future Extension
+## Bonus Extension Completed
 
-Multilevel Feedback Queue (MLFQ) is a possible bonus extension.
+Multilevel Feedback Queue (MLFQ) was implemented after the required single-core and multi-core schedulers were completed and tested. It is intentionally limited to the single-core simulator so the bonus remains separate from the required multi-core scheduling work.
 
-MLFQ is intentionally outside the current core implementation. The required single-core and multi-core scheduling algorithms, scheduling metrics, Gantt charts, comparisons, testing, and documentation are implemented first so the project remains focused and testable.
+The MLFQ implementation is included in the normal single-core demonstration, Gantt-chart output, algorithm comparison table, and automated test suite.
