@@ -269,7 +269,8 @@ void printComparison(
     const vector<Process>& sjfResult,
     const vector<Process>& srtfResult,
     const vector<Process>& rrResult,
-    const vector<Process>& priorityResult)
+    const vector<Process>& priorityResult,
+    const vector<Process>& mlfqResult)
 {
     cout << "\n\nAlgorithm Comparison\n";
 
@@ -311,6 +312,11 @@ void printComparison(
     printComparisonRow(
         "Priority",
         priorityResult
+    );
+
+    printComparisonRow(
+        "MLFQ",
+        mlfqResult
     );
 }
 
@@ -507,6 +513,7 @@ void runSchedulers(
     vector<GanttEntry> srtfGantt;
     vector<GanttEntry> rrGantt;
     vector<GanttEntry> priorityGantt;
+    vector<GanttEntry> mlfqGantt;
 
 
     vector<Process> fcfsResult =
@@ -542,6 +549,18 @@ void runSchedulers(
         Scheduler::priorityScheduling(
             processes,
             &priorityGantt
+        );
+
+
+    const int mlfqQ0Quantum = 2;
+    const int mlfqQ1Quantum = 4;
+
+    vector<Process> mlfqResult =
+        Scheduler::mlfq(
+            processes,
+            mlfqQ0Quantum,
+            mlfqQ1Quantum,
+            &mlfqGantt
         );
 
 
@@ -606,12 +625,24 @@ void runSchedulers(
     );
 
 
+    printResult(
+        "MLFQ Result (Q0 = 2, Q1 = 4, Q2 = FCFS)",
+        mlfqResult
+    );
+
+    printGantt(
+        "MLFQ",
+        mlfqGantt
+    );
+
+
     printComparison(
         fcfsResult,
         sjfResult,
         srtfResult,
         rrResult,
-        priorityResult
+        priorityResult,
+        mlfqResult
     );
 }
 

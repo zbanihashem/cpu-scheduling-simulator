@@ -39,6 +39,13 @@ public:
         int agingInterval,
         std::vector<GanttEntry>* gantt = nullptr
     );
+
+    static std::vector<Process> mlfq(
+        std::vector<Process> processes,
+        int q0Quantum = 2,
+        int q1Quantum = 4,
+        std::vector<GanttEntry>* gantt = nullptr
+    );
 };
 
 #endif
